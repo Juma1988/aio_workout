@@ -1,0 +1,75 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.branch
+.buildlog/
+.history
+.svn/
+.metadata/
+.settings/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Visual Studio Code related
+.classpath
+.project
+.settings/
+.vscode/
+
+# Flutter repo-specific
+/pubspec.lock
+
+# Android
+.android/
+.gradle/
+local.properties
+*.iml
+*.hprof
+.cxx/
+
+# iOS
+Pods/
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+*.xcuserdata
+*.xccheckout
+*.xcuserstate
+ios/.xcode.env.local
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Podfile.lock
+ios/ServiceDefinitions.json
+
+# macOS
+macos/Flutter/ephemeral
+macos/Podfile.lock
+
+# Windows
+windows/flutter/ephemeral
+
+# Linux
+linux/flutter/ephemeral
+
+# Coverage
+coverage/
+
+# Symbols
+app.*.symbols
+
+# Build output
+build/
+
+# Android signing
+android/app/signing/
+android/key.properties
