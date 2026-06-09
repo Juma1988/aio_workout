@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
-import '../../core/widgets/progress_ring.dart';
 import '../../data/exercise.dart';
 import '../notifications/services/notification_service.dart';
 
@@ -214,10 +213,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
             ),
           ),
           leading: IconButton(
-            icon: Icon(
-              Icons.close,
-              color: AppTheme.textSecondary(context),
-            ),
+            icon: Icon(Icons.close, color: AppTheme.textSecondary(context)),
             onPressed: () {
               if (_isResting || _isHolding || _currentSet > 0) {
                 _confirmExit();
@@ -227,15 +223,9 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
             },
           ),
           actions: [
-            Semantics(
-              label: 'Show exercise info',
-              child: IconButton(
-                icon: Icon(
-                  Icons.info_outline_rounded,
-                  color: AppTheme.textSecondary(context),
-                ),
-                onPressed: () => _showInfo(context),
-              ),
+            IconButton(
+              icon: Icon(Icons.info_outline_rounded, color: AppTheme.textSecondary(context)),
+              onPressed: () => _showInfo(context),
             ),
           ],
         ),
@@ -246,68 +236,149 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
               children: [
                 const Spacer(flex: 1),
 
-                // Pills row
-                Semantics(
-                  label: '${widget.exercise.recommendedLevel.label}, ${muscle.label}, ${cat.label}',
-                  child: Wrap(
-                    spacing: 8,
-                    alignment: WrapAlignment.center,
-                    runAlignment: WrapAlignment.center,
-                    children: [
-                      _pill(context, widget.exercise.recommendedLevel.label, lvlColor),
-                      _pill(context, muscle.label, muscle.color),
-                      _pill(context, cat.label, cat.color),
-                    ],
+                // ── Exercise name (large, bold) ──
+                Text(
+                  widget.exercise.name,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary(context),
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
 
-                // Progress ring
-                Semantics(
-                  label: _isComplete
-                      ? 'All sets complete'
-                      : 'Set ${_currentSet + 1} of $_totalSets',
-                  child: _isComplete
-                      ? _buildCompleteRing(context)
-                      : ProgressRing(
-                          progress: _currentSet / _totalSets.clamp(1, double.infinity),
-                          centerLabel: '${_currentSet + 1}/$_totalSets',
-                          bottomLabel: 'Set ${_currentSet + 1}',
-                          color: colorScheme.primary,
-                          size: 140,
-                        ),
+                // ── Pills row ──
+                Wrap(
+                  spacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _pill(context, widget.exercise.recommendedLevel.label, lvlColor),
+                    _pill(context, muscle.label, muscle.color),
+                    _pill(context, cat.label, cat.color),
+                  ],
                 ),
+                const SizedBox(height: 32),
+
+                // ── Progress ring ──
+                _buildProgressSection(context, colorScheme),
+
                 const SizedBox(height: 24),
 
-                // Target info
-                if (!_isComplete)
-                  Semantics(
-                    label: _targetInfo,
+                // ── Target info ──
+                if (!_isComplete && _targetInfo.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.subtleFill(context, 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: Text(
                       _targetInfo,
                       style: TextStyle(
                         color: AppTheme.textSecondary(context),
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                const SizedBox(height: 24),
 
-                // Main action area
+                const Spacer(flex: 1),
+
+                // ── Main action area ──
                 if (!_isComplete)
                   _buildAction(context, colorScheme)
                 else
                   _buildCompleteState(context, colorScheme),
 
-                const Spacer(flex: 1),
+                const SizedBox(height: 12),
 
-                // End Workout
+                // ── End Workout ──
                 _buildEndWorkoutButton(context, colorScheme),
                 const SizedBox(height: 16),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressSection(BuildContext context, ColorScheme colorScheme) {
+    if (_isComplete) {
+      return _buildCompleteRing(context);
+    }
+
+    final progress = _currentSet / _totalSets.clamp(1, double.infinity);
+    final ringColor = colorScheme.primary;
+    final ringSize = 180.0;
+    final strokeWidth = 10.0;
+
+    return Semantics(
+      label: 'Set ${_currentSet + 1} of $_totalSets',
+      child: SizedBox(
+        width: ringSize,
+        height: ringSize,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: progress),
+              duration: AppTheme.kAnimProgress,
+              curve: AppTheme.kEaseOut,
+              builder: (context, animatedProgress, _) {
+                return SizedBox(
+                  width: ringSize,
+                  height: ringSize,
+                  child: CircularProgressIndicator(
+                    value: animatedProgress,
+                    strokeWidth: strokeWidth,
+                    backgroundColor: AppTheme.subtleFill(context, 0.12),
+                    color: ringColor,
+                    strokeCap: StrokeCap.round,
+                  ),
+                );
+              },
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${_currentSet + 1}',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary(context),
+                    fontSize: 52,
+                    fontWeight: FontWeight.w800,
+                    height: 1.0,
+                  ),
+                ),
+                Text(
+                  'of $_totalSets',
+                  style: TextStyle(
+                    color: AppTheme.textTertiary(context),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: ringColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Set ${_currentSet + 1}',
+                    style: TextStyle(
+                      color: ringColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -319,7 +390,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
     }
     final parts = <String>[];
     if (_level?.reps != null) parts.add('${_level!.reps} reps');
-    if (_level?.weightKg != null) parts.add('${_level!.weightKg}kg');
+    if (_level?.weightKg != null) parts.add('${_level!.weightKg} kg');
     return parts.join(' · ');
   }
 
@@ -334,22 +405,22 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
   }
 
   Widget _buildCompleteButton(BuildContext context, ColorScheme colorScheme) {
-    return Semantics(
-      label: 'Complete set ${_currentSet + 1} of $_totalSets',
-      child: SizedBox(
-        width: double.infinity,
-        height: 72,
-        child: FilledButton.icon(
-          onPressed: _completeSet,
-          icon: const Icon(Icons.check_circle_outline, size: 28),
-          label: Text(
-            _currentSet == 0 ? 'Start Set 1' : 'Complete Set',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-          ),
-          style: FilledButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
+    return SizedBox(
+      width: double.infinity,
+      height: 64,
+      child: FilledButton.icon(
+        onPressed: _completeSet,
+        icon: Icon(
+          _currentSet == 0 ? Icons.play_arrow_rounded : Icons.check_circle_outline,
+          size: 28,
+        ),
+        label: Text(
+          _currentSet == 0 ? 'Start Set ${_currentSet + 1}' : 'Complete Set',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+        style: FilledButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),
@@ -362,67 +433,57 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
 
     return Column(
       children: [
-        Semantics(
-          label: 'Hold for $_holdRemaining seconds remaining',
-          child: AnimatedContainer(
-            duration: AppTheme.kAnimFast,
-            curve: AppTheme.kEaseOut,
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            decoration: BoxDecoration(
-              color: timerColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'Hold',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary(context),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          decoration: BoxDecoration(
+            color: timerColor.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            children: [
+              Text(
+                'Hold',
+                style: TextStyle(
+                  color: AppTheme.textSecondary(context),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _formatTime(_holdRemaining),
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 56,
-                    fontWeight: FontWeight.w700,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _formatTime(_holdRemaining),
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 56,
+                  fontWeight: FontWeight.w700,
+                  color: timerColor,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: 200,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: _holdProgress,
+                    backgroundColor: AppTheme.subtleFill(context, 0.15),
                     color: timerColor,
+                    minHeight: 6,
                   ),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: 200,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: _holdProgress,
-                      backgroundColor: AppTheme.subtleFill(context),
-                      color: timerColor,
-                      minHeight: 6,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
-        Semantics(
-          label: 'Skip hold',
-          child: TextButton.icon(
-            onPressed: _completeSet,
-            icon: Icon(
-              Icons.skip_next_rounded,
-              color: AppTheme.textSecondary(context),
-            ),
-            label: Text(
-              'Skip Hold',
-              style: TextStyle(color: AppTheme.textSecondary(context)),
-            ),
+        TextButton.icon(
+          onPressed: _completeSet,
+          icon: Icon(Icons.skip_next_rounded, color: AppTheme.textSecondary(context)),
+          label: Text(
+            'Skip Hold',
+            style: TextStyle(color: AppTheme.textSecondary(context)),
           ),
         ),
       ],
@@ -435,83 +496,70 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
 
     return Column(
       children: [
-        Semantics(
-          label: 'Rest for $_restRemaining seconds remaining',
-          child: AnimatedContainer(
-            duration: AppTheme.kAnimFast,
-            curve: AppTheme.kEaseOut,
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            decoration: BoxDecoration(
-              color: timerColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'Rest',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary(context),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          decoration: BoxDecoration(
+            color: timerColor.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            children: [
+              Text(
+                'Rest',
+                style: TextStyle(
+                  color: AppTheme.textSecondary(context),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatTime(_restRemaining),
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 48,
-                    fontWeight: FontWeight.w700,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _formatTime(_restRemaining),
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 48,
+                  fontWeight: FontWeight.w700,
+                  color: timerColor,
+                  height: 1.0,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: 180,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: _restProgress,
+                    backgroundColor: AppTheme.subtleFill(context, 0.15),
                     color: timerColor,
+                    minHeight: 5,
                   ),
                 ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: 180,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: _restProgress,
-                      backgroundColor: AppTheme.subtleFill(context),
-                      color: timerColor,
-                      minHeight: 5,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Semantics(
-              label: _isPaused ? 'Resume rest timer' : 'Pause rest timer',
-              child: IconButton(
-                icon: Icon(
-                  _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                  color: AppTheme.textSecondary(context),
-                ),
-                onPressed: _togglePause,
-                style: IconButton.styleFrom(
-                  backgroundColor: AppTheme.subtleFill(context, 0.10),
-                ),
+            IconButton(
+              icon: Icon(
+                _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                color: AppTheme.textSecondary(context),
+              ),
+              onPressed: _togglePause,
+              style: IconButton.styleFrom(
+                backgroundColor: AppTheme.subtleFill(context, 0.10),
               ),
             ),
             const SizedBox(width: 16),
-            Semantics(
-              label: 'Skip rest',
-              child: IconButton(
-                icon: Icon(
-                  Icons.skip_next_rounded,
-                  color: AppTheme.textSecondary(context),
-                ),
-                onPressed: _skipRest,
-                style: IconButton.styleFrom(
-                  backgroundColor: AppTheme.subtleFill(context, 0.10),
-                ),
+            IconButton(
+              icon: Icon(Icons.skip_next_rounded, color: AppTheme.textSecondary(context)),
+              onPressed: _skipRest,
+              style: IconButton.styleFrom(
+                backgroundColor: AppTheme.subtleFill(context, 0.10),
               ),
             ),
           ],
@@ -522,29 +570,54 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
 
   Widget _buildCompleteRing(BuildContext context) {
     final green = AppTheme.achievementGreen;
+    final ringSize = 180.0;
+    final strokeWidth = 10.0;
+
     return Column(
       children: [
-        ProgressRing(
-          progress: 1.0,
-          centerLabel: '✓',
-          bottomLabel: 'Done',
-          color: green,
-          size: 140,
+        SizedBox(
+          width: ringSize,
+          height: ringSize,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: AppTheme.kAnimProgress,
+                curve: AppTheme.kEaseOut,
+                builder: (context, animatedProgress, _) {
+                  return SizedBox(
+                    width: ringSize,
+                    height: ringSize,
+                    child: CircularProgressIndicator(
+                      value: animatedProgress,
+                      strokeWidth: strokeWidth,
+                      backgroundColor: AppTheme.subtleFill(context, 0.12),
+                      color: green,
+                      strokeCap: StrokeCap.round,
+                    ),
+                  );
+                },
+              ),
+              Icon(Icons.check_circle, color: green, size: 64),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         Text(
-          'All Sets Done! 🎉',
+          'All Sets Done!',
           style: TextStyle(
             color: green,
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: FontWeight.w700,
           ),
         ),
+        const SizedBox(height: 4),
         Text(
           'Great work!',
           style: TextStyle(
             color: AppTheme.textSecondary(context),
-            fontSize: 15,
+            fontSize: 16,
           ),
         ),
       ],
@@ -556,40 +629,18 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
       children: [
         SizedBox(
           width: double.infinity,
-          height: 64,
+          height: 56,
           child: FilledButton.icon(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.check_circle, size: 24),
+            icon: const Icon(Icons.arrow_back_rounded, size: 22),
             label: const Text(
               'Back to Workout',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             style: FilledButton.styleFrom(
               backgroundColor: AppTheme.achievementGreen,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton.icon(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(
-              Icons.arrow_back_rounded,
-              color: AppTheme.textSecondary(context),
-            ),
-            label: Text(
-              'Back to List',
-              style: TextStyle(color: AppTheme.textSecondary(context)),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: AppTheme.subtleFill(context, 0.24)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
           ),
@@ -599,29 +650,26 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
   }
 
   Widget _buildEndWorkoutButton(BuildContext context, ColorScheme colorScheme) {
-    return Semantics(
-      label: 'End workout',
-      child: SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: OutlinedButton.icon(
-          onPressed: () {
-            if (_currentSet > 0 || _isResting || _isHolding) {
-              _confirmExit();
-            } else {
-              Navigator.of(context).pop();
-            }
-          },
-          icon: Icon(Icons.stop_circle_outlined, color: colorScheme.error),
-          label: Text(
-            'End Workout',
-            style: TextStyle(color: colorScheme.error),
-          ),
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(color: colorScheme.error.withValues(alpha: 0.4)),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          if (_currentSet > 0 || _isResting || _isHolding) {
+            _confirmExit();
+          } else {
+            Navigator.of(context).pop();
+          }
+        },
+        icon: Icon(Icons.stop_circle_outlined, color: colorScheme.error, size: 20),
+        label: Text(
+          'End Workout',
+          style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.w500),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: colorScheme.error.withValues(alpha: 0.4)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),

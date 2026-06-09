@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,7 +9,10 @@ import '../../core/widgets/colored_icon_box.dart';
 import '../../core/widgets/progress_ring.dart';
 import '../../core/widgets/staggered_section.dart';
 import '../../core/widgets/top_action.dart';
+import '../../data/workout_log.dart';
+import '../../services/workout_storage_service.dart';
 import '../dialogs/achivment_dialog.dart';
+import '../dialogs/edit_profile_dialog.dart';
 import '../dialogs/workout_plan_dialog.dart';
 import '../notifications/notification_settings_screen.dart';
 import 'exersise_dialog.dart';
@@ -25,8 +30,22 @@ class _ProfileScreenState extends State<ProfileScreen>
   bool _reduceMotion = false;
   int _restTimerSeconds = 30;
 
+  // Profile data
+  String _name = 'Alex Rivera';
+  String _email = 'alex@workout.dev';
+  String? _avatarPath;
+  int _age = 28;
+  String _goal = 'general_fitness';
+
+  // Stats data
+  int _workoutCount = 0;
+  int _dayStreak = 0;
+  int _totalMinutes = 0;
+  int _achievementCount = 0;
+  String _latestAchievement = '';
+
   String get _initials {
-    final parts = 'Alex Rivera'.split(' ');
+    final parts = _name.split(' ');
     if (parts.length >= 2) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
@@ -40,24 +59,71 @@ class _ProfileScreenState extends State<ProfileScreen>
       vsync: this,
       duration: AppTheme.kAnimEntrance,
     );
-    _loadRestTimer();
+    _loadAll();
   }
 
-  Future<void> _loadRestTimer() async {
+  Future<void> _loadAll() async {
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _restTimerSeconds = prefs.getInt('rest_timer_seconds') ?? 30;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _name = prefs.getString('profile_name') ?? 'Alex Rivera';
+      _email = prefs.getString('profile_email') ?? 'alex@workout.dev';
+      _avatarPath = prefs.getString('profile_avatar_path');
+      _age = prefs.getInt('profile_age') ?? 28;
+      _goal = prefs.getString('profile_goal') ?? 'general_fitness';
+      _restTimerSeconds = prefs.getInt('rest_timer_seconds') ?? 30;
+    });
+
+    await _loadStats(prefs);
   }
 
-  Future<void> _saveRestTimer(int seconds) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('rest_timer_seconds', seconds);
-    if (mounted) {
-      setState(() => _restTimerSeconds = seconds);
+  Future<void> _loadStats(SharedPreferences prefs) async {
+    final sessions = await WorkoutStorageService().loadSessions();
+
+    final uniqueDays = <String>{};
+    int totalSecs = 0;
+    for (final s in sessions) {
+      uniqueDays.add(s.date.toIso8601String().substring(0, 10));
+      for (final e in s.exercises) {
+        totalSecs += e.setsCompleted;
+      }
     }
+
+    final streak = _calculateStreak(sessions);
+    final unlockedAchievements = evaluateAchievements(sessions);
+    final unlocked = unlockedAchievements.length;
+    final latest = unlockedAchievements.isNotEmpty
+        ? unlockedAchievements.last
+        : null;
+
+    if (!mounted) return;
+    setState(() {
+      _workoutCount = uniqueDays.length;
+      _dayStreak = streak;
+      _totalMinutes = (totalSecs / 60).round();
+      _achievementCount = unlocked;
+      _latestAchievement = latest?.title ?? '';
+      _restTimerSeconds = prefs.getInt('rest_timer_seconds') ?? 30;
+    });
+  }
+
+  int _calculateStreak(List<WorkoutSession> sessions) {
+    final dates = sessions.map((s) => s.date).toSet().toList()..sort();
+    if (dates.isEmpty) return 0;
+
+    int streak = 0;
+    final today = DateTime.now();
+    for (int i = dates.length - 1; i >= 0; i--) {
+      final expected = today.subtract(Duration(days: streak));
+      if (dates[i].year == expected.year &&
+          dates[i].month == expected.month &&
+          dates[i].day == expected.day) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    return streak;
   }
 
   @override
@@ -75,6 +141,14 @@ class _ProfileScreenState extends State<ProfileScreen>
   void dispose() {
     _entranceController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveRestTimer(int seconds) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('rest_timer_seconds', seconds);
+    if (mounted) {
+      setState(() => _restTimerSeconds = seconds);
+    }
   }
 
   @override
@@ -162,38 +236,43 @@ class _ProfileScreenState extends State<ProfileScreen>
     final cardColor = AppTheme.cardColor(context);
 
     return Semantics(
-      label: 'User profile: Alex Rivera',
+      label: 'User profile: $_name',
       child: Center(
         child: Column(
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                CircleAvatar(
-                  radius: 48,
-                  backgroundColor: colorScheme.primaryContainer,
-                  child: Text(
-                    _initials,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onPrimaryContainer,
-                    ),
+            GestureDetector(
+              onTap: () => _openEditProfile(),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CircleAvatar(
+                    radius: 48,
+                    backgroundColor: colorScheme.primaryContainer,
+                    backgroundImage: _avatarPath != null
+                        ? FileImage(File(_avatarPath!))
+                        : null,
+                    child: _avatarPath == null
+                        ? Text(
+                            _initials,
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: colorScheme.onPrimaryContainer,
+                            ),
+                          )
+                        : null,
                   ),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: cardColor, width: 2.5),
-                    ),
-                    child: GestureDetector(
-                      onTap: () => _showComingSoon(context, 'Photo picker'),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: cardColor, width: 2.5),
+                      ),
                       child: Icon(
                         Icons.camera_alt,
                         size: 14,
@@ -201,29 +280,41 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             Text(
-              'Alex Rivera',
+              _name,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary(context),
                   ),
             ),
             Text(
-              'alex@workout.dev',
+              _email,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppTheme.textSecondary(context),
                   ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Member since June 2025',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textTertiary(context),
-                  ),
+            if (_goal != 'general_fitness')
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Goal: ${_goal.replaceAll('_', ' ').split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' ')}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textTertiary(context),
+                      ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Member since June 2025',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textTertiary(context),
+                    ),
+              ),
             ),
           ],
         ),
@@ -232,39 +323,52 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildStats(BuildContext context) {
+    final workoutProgress =
+        _workoutCount > 0 ? (_workoutCount / 50).clamp(0.0, 1.0) : 0.0;
+    final streakProgress =
+        _dayStreak > 0 ? (_dayStreak / 30).clamp(0.0, 1.0) : 0.0;
+    final timeProgress =
+        _totalMinutes > 0 ? (_totalMinutes / 6000).clamp(0.0, 1.0) : 0.0; // 100h
+
     return Semantics(
       label: 'Your fitness statistics',
       child: Row(
         children: [
-          Expanded(child: _buildStatCard(
-            context,
-            value: '47',
-            label: 'Workouts',
-            icon: Icons.fitness_center,
-            color: AppTheme.achievementGreen,
-            progress: 0.94,
-            goalLabel: '50 goal',
-          )),
+          Expanded(
+            child: _buildStatCard(
+              context,
+              value: '$_workoutCount',
+              label: 'Workouts',
+              icon: Icons.fitness_center,
+              color: AppTheme.achievementGreen,
+              progress: workoutProgress,
+              goalLabel: '50 goal',
+            ),
+          ),
           const SizedBox(width: 12),
-          Expanded(child: _buildStatCard(
-            context,
-            value: '12',
-            label: 'Day Streak',
-            icon: Icons.local_fire_department,
-            color: AppTheme.stepsOrange,
-            progress: 0.40,
-            goalLabel: '30 day',
-          )),
+          Expanded(
+            child: _buildStatCard(
+              context,
+              value: '$_dayStreak',
+              label: 'Day Streak',
+              icon: Icons.local_fire_department,
+              color: AppTheme.stepsOrange,
+              progress: streakProgress,
+              goalLabel: '30 day',
+            ),
+          ),
           const SizedBox(width: 12),
-          Expanded(child: _buildStatCard(
-            context,
-            value: '28h',
-            label: 'Total Time',
-            icon: Icons.timer_outlined,
-            color: AppTheme.hydrationBlue,
-            progress: 0.28,
-            goalLabel: '100h goal',
-          )),
+          Expanded(
+            child: _buildStatCard(
+              context,
+              value: '${_totalMinutes}h',
+              label: 'Total Time',
+              icon: Icons.timer_outlined,
+              color: AppTheme.hydrationBlue,
+              progress: timeProgress,
+              goalLabel: '100h goal',
+            ),
+          ),
         ],
       ),
     );
@@ -279,7 +383,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     required double progress,
     required String goalLabel,
   }) {
-    final numericValue = double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
+    final numericValue =
+        double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
     final suffix = value.replaceAll(RegExp(r'[0-9]'), '');
 
     return Semantics(
@@ -288,7 +393,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         borderRadius: BorderRadius.circular(16),
         onTap: () {
           HapticFeedback.lightImpact();
-          _showComingSoon(context, '$label details');
         },
         child: Card(
           shape: RoundedRectangleBorder(
@@ -348,7 +452,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final green = AppTheme.achievementGreen;
 
     return Semantics(
-      label: 'Achievements: 1 of 12 unlocked. Latest: First Steps',
+      label: 'Achievements: $_achievementCount of 12 unlocked. Latest: $_latestAchievement',
       child: Card(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -394,9 +498,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                             width: 2,
                           ),
                         ),
-                        child: const Center(
+                        child: Center(
                           child: Text(
-                            '1',
+                            '$_achievementCount',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -423,14 +527,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '1 / 12 unlocked',
+                        '$_achievementCount / 12 unlocked',
                         style: TextStyle(
                           color: AppTheme.textPrimary(context),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       Text(
-                        'Latest: First Steps',
+                        _latestAchievement.isNotEmpty
+                            ? 'Latest: $_latestAchievement'
+                            : 'Complete workouts to earn achievements',
                         style: TextStyle(
                           color: AppTheme.textTertiary(context),
                           fontSize: 13,
@@ -473,8 +579,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 icon: Icons.edit_outlined,
                 title: 'Edit Profile',
                 color: Theme.of(context).colorScheme.primary,
-                isSoon: true,
-                onTap: () => _showComingSoon(context, 'Edit Profile'),
+                subtitle: '$_name · $_age yrs',
+                onTap: () => _openEditProfile(),
               ),
               _divider(context),
               _buildSettingsTile(
@@ -796,6 +902,19 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
       ],
     );
+  }
+
+  void _openEditProfile() {
+    HapticFeedback.lightImpact();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const EditProfileDialog(),
+      ),
+    ).then((result) {
+      if (result == true) {
+        _loadAll();
+      }
+    });
   }
 
   void _showComingSoon(BuildContext context, String feature) {
