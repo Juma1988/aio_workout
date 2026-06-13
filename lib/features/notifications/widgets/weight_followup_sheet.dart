@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
-import '../services/notification_strings.dart';
+import '../../../l10n/app_localizations.dart';
 
 class WeightFollowUpSheet extends StatefulWidget {
   final bool initialEnabled;
-  final double initialTargetKg;
-  final int initialIntervalDays;
+  final double initialWeight;
+  final int initialInterval;
   final bool useMetric;
-  final void Function(bool enabled, double targetKg, int intervalDays) onSave;
+  final void Function(bool enabled, double weightKg, int intervalDays) onSave;
 
   const WeightFollowUpSheet({
     super.key,
     required this.initialEnabled,
-    required this.initialTargetKg,
-    required this.initialIntervalDays,
+    required this.initialWeight,
+    required this.initialInterval,
     required this.useMetric,
     required this.onSave,
   });
@@ -34,11 +34,12 @@ class _WeightFollowUpSheetState extends State<WeightFollowUpSheet> {
   void initState() {
     super.initState();
     _enabled = widget.initialEnabled;
-    _targetWeightKg = widget.initialTargetKg;
-    _intervalDays = widget.initialIntervalDays;
+    _targetWeightKg = widget.initialWeight;
+    _intervalDays = widget.initialInterval;
   }
 
   void _showWeightPicker() {
+    final l10n = AppLocalizations.of(context);
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
@@ -49,40 +50,50 @@ class _WeightFollowUpSheetState extends State<WeightFollowUpSheet> {
         double localWeight = _targetWeightKg;
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            final displayWeight = widget.useMetric ? localWeight : localWeight * 2.205;
+            final displayWeight = widget.useMetric
+                ? localWeight
+                : localWeight * 2.205;
             final unit = widget.useMetric ? 'kg' : 'lb';
             return Padding(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(width: 36, height: 4,
+                  Container(
+                    width: 36, height: 4,
                     decoration: BoxDecoration(
                       color: AppTheme.subtleFill(context, 0.30),
                       borderRadius: BorderRadius.circular(2),
-                    )),
+                    ),
+                  ),
                   const SizedBox(height: 20),
-                  Text(NotificationStrings.targetWeight,
+                  Text(l10n.notif_targetWeight,
                     style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 18, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 24),
-                  Text('${displayWeight.toStringAsFixed(0)} $unit',
-                    style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 48, fontWeight: FontWeight.w700)),
+                  Text(
+                    '${displayWeight.toStringAsFixed(0)} $unit',
+                    style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 48, fontWeight: FontWeight.w700),
+                  ),
                   const SizedBox(height: 8),
                   Text('Slide to set your target weight',
                     style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 13)),
                   const SizedBox(height: 16),
                   Slider(
-                    value: localWeight, min: 50, max: 200, divisions: 150,
+                    value: localWeight,
+                    min: 50, max: 200, divisions: 150,
                     label: '${localWeight.toStringAsFixed(0)} kg',
                     onChanged: (v) => setSheetState(() => localWeight = v),
                   ),
-                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(widget.useMetric ? '50 kg' : '110 lb',
                         style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 12)),
                       Text(widget.useMetric ? '200 kg' : '440 lb',
                         style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 12)),
-                    ]),
+                    ],
+                  ),
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
@@ -109,13 +120,14 @@ class _WeightFollowUpSheetState extends State<WeightFollowUpSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final weightStr = widget.useMetric
         ? '${_targetWeightKg.toStringAsFixed(0)} kg'
         : '${(_targetWeightKg * 2.205).toStringAsFixed(0)} lb';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-      child: Column(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
@@ -126,30 +138,31 @@ class _WeightFollowUpSheetState extends State<WeightFollowUpSheet> {
             ),
           ),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              const Icon(Icons.monitor_weight_outlined, size: 22, color: AppTheme.hydrationBlue),
-              const SizedBox(width: 10),
-              Text(NotificationStrings.weightConfigTitle,
-                style: TextStyle(
-                  color: AppTheme.textPrimary(context),
-                  fontSize: 18, fontWeight: FontWeight.w700,
-                )),
-            ],
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(
+              color: AppTheme.hydrationBlue.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.monitor_weight_outlined, size: 28, color: AppTheme.hydrationBlue),
           ),
+          const SizedBox(height: 16),
+          Text(l10n.notif_weightFollowUp,
+            style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text(NotificationStrings.weightConfigHeader,
+          Text(l10n.notif_weightFollowUpSub,
+            textAlign: TextAlign.center,
             style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 13)),
           const SizedBox(height: 24),
-
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text('Enable Weight Follow-Up',
               style: TextStyle(color: AppTheme.textPrimary(context), fontWeight: FontWeight.w600)),
+            subtitle: Text('Get reminded to log your weight regularly',
+              style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 12)),
             value: _enabled,
             onChanged: (v) => setState(() => _enabled = v),
           ),
-
           if (_enabled) ...[
             const SizedBox(height: 16),
             InkWell(
@@ -163,21 +176,30 @@ class _WeightFollowUpSheetState extends State<WeightFollowUpSheet> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.monitor_weight_outlined, size: 20, color: AppTheme.hydrationBlue),
+                    Icon(Icons.monitor_weight_outlined, size: 20, color: AppTheme.hydrationBlue),
                     const SizedBox(width: 12),
-                    Expanded(child: Text(NotificationStrings.targetWeight,
-                      style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 14))),
-                    Text(weightStr,
-                      style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 16, fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(l10n.notif_targetWeight,
+                            style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 14)),
+                          Text(weightStr,
+                            style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 16, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
                     Icon(Icons.edit_outlined, size: 16, color: AppTheme.textTertiary(context)),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            Text(NotificationStrings.remindEvery,
+            Text(l10n.notif_remindEvery,
               style: TextStyle(color: AppTheme.textPrimary(context), fontWeight: FontWeight.w600, fontSize: 15)),
+            const SizedBox(height: 4),
+            Text('How often to ask you to log your weight',
+              style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 13)),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8, runSpacing: 8,
@@ -190,26 +212,36 @@ class _WeightFollowUpSheetState extends State<WeightFollowUpSheet> {
                     curve: AppTheme.kEaseOut,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
-                      color: selected ? AppTheme.hydrationBlue.withValues(alpha: 0.2) : AppTheme.subtleFill(context, 0.08),
+                      color: selected
+                          ? AppTheme.hydrationBlue.withValues(alpha: 0.2)
+                          : AppTheme.subtleFill(context, 0.08),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: selected ? AppTheme.hydrationBlue.withValues(alpha: 0.5) : AppTheme.subtleFill(context, 0.15),
+                        color: selected
+                            ? AppTheme.hydrationBlue.withValues(alpha: 0.5)
+                            : AppTheme.subtleFill(context, 0.15),
                         width: selected ? 1.5 : 1,
                       ),
                     ),
                     child: Text(
-                      days == 1 ? 'Every day' : days == 7 ? 'Weekly' : days == 14 ? 'Every 2 weeks' : 'Every $days days',
+                      days == 1
+                          ? 'Every day'
+                          : days == 7
+                              ? 'Weekly'
+                              : days == 14
+                                  ? 'Every 2 weeks'
+                                  : 'Every $days days',
                       style: TextStyle(
                         color: selected ? AppTheme.hydrationBlue : AppTheme.textSecondary(context),
                         fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                         fontSize: 14,
-                      )),
+                      ),
+                    ),
                   ),
                 );
               }).toList(),
             ),
           ],
-
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -223,7 +255,7 @@ class _WeightFollowUpSheetState extends State<WeightFollowUpSheet> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: Text(NotificationStrings.done),
+              child: Text(l10n.notif_done),
             ),
           ),
         ],

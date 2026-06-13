@@ -6,7 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/directional_icon.dart';
+import '../../core/widgets/set_progress_bars.dart';
 import '../../data/exercise.dart';
+import '../../l10n/app_localizations.dart';
 import '../notifications/services/notification_service.dart';
 
 class ExerciseProgressDialog extends StatefulWidget {
@@ -188,11 +191,14 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
 
   double get _restProgress =>
       _restRemaining / (_effectiveRestSeconds).clamp(1, double.infinity);
-  double get _holdProgress =>
-      _holdRemaining / (_level?.durationSeconds ?? 1).clamp(1, double.infinity);
+  double get _holdElapsed {
+    final total = (_level?.durationSeconds ?? 1).clamp(1, double.infinity);
+    return (total - _holdRemaining) / total;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final colorScheme = Theme.of(context).colorScheme;
     final cat = widget.exercise.category;
     final muscle = widget.exercise.targetMuscle;
@@ -266,7 +272,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
                 const SizedBox(height: 24),
 
                 // ── Target info ──
-                if (!_isComplete && _targetInfo.isNotEmpty)
+                if (!_isComplete && _targetInfo(l10n).isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
@@ -274,7 +280,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      _targetInfo,
+                      _targetInfo(l10n),
                       style: TextStyle(
                         color: AppTheme.textSecondary(context),
                         fontSize: 16,
@@ -305,92 +311,29 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
   }
 
   Widget _buildProgressSection(BuildContext context, ColorScheme colorScheme) {
+    final l10n = AppLocalizations.of(context);
     if (_isComplete) {
-      return _buildCompleteRing(context);
+      return _buildCompleteBars(context);
     }
 
-    final progress = _currentSet / _totalSets.clamp(1, double.infinity);
-    final ringColor = colorScheme.primary;
-    final ringSize = 180.0;
-    final strokeWidth = 10.0;
-
-    return Semantics(
-      label: 'Set ${_currentSet + 1} of $_totalSets',
-      child: SizedBox(
-        width: ringSize,
-        height: ringSize,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: progress),
-              duration: AppTheme.kAnimProgress,
-              curve: AppTheme.kEaseOut,
-              builder: (context, animatedProgress, _) {
-                return SizedBox(
-                  width: ringSize,
-                  height: ringSize,
-                  child: CircularProgressIndicator(
-                    value: animatedProgress,
-                    strokeWidth: strokeWidth,
-                    backgroundColor: AppTheme.subtleFill(context, 0.12),
-                    color: ringColor,
-                    strokeCap: StrokeCap.round,
-                  ),
-                );
-              },
-            ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${_currentSet + 1}',
-                  style: TextStyle(
-                    color: AppTheme.textPrimary(context),
-                    fontSize: 52,
-                    fontWeight: FontWeight.w800,
-                    height: 1.0,
-                  ),
-                ),
-                Text(
-                  'of $_totalSets',
-                  style: TextStyle(
-                    color: AppTheme.textTertiary(context),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: ringColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'Set ${_currentSet + 1}',
-                    style: TextStyle(
-                      color: ringColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    return SetProgressBars(
+      currentSet: _currentSet,
+      totalSets: _totalSets,
+      isHolding: _isHolding,
+      isResting: _isResting,
+      holdProgress: _holdElapsed,
+      label: '${l10n.dialog_setLabel(_currentSet + 1)} ${l10n.dialog_ofTotal(_totalSets)}',
+      semanticsLabel: l10n.dialog_setOfSemantics(_currentSet + 1, _totalSets),
     );
   }
 
-  String get _targetInfo {
+  String _targetInfo(AppLocalizations l10n) {
     if (_isTimeBased) {
-      return '${_level?.durationSeconds ?? 0}s hold';
+      return l10n.dialog_secondsHold(_level?.durationSeconds ?? 0);
     }
     final parts = <String>[];
-    if (_level?.reps != null) parts.add('${_level!.reps} reps');
-    if (_level?.weightKg != null) parts.add('${_level!.weightKg} kg');
+    if (_level?.reps != null) parts.add(l10n.dialog_repsCount(_level!.reps!));
+    if (_level?.weightKg != null) parts.add(l10n.dialog_weightKgLabel(_level!.weightKg!));
     return parts.join(' · ');
   }
 
@@ -405,17 +348,17 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
   }
 
   Widget _buildCompleteButton(BuildContext context, ColorScheme colorScheme) {
+    final l10n = AppLocalizations.of(context);
     return SizedBox(
       width: double.infinity,
       height: 64,
       child: FilledButton.icon(
         onPressed: _completeSet,
-        icon: Icon(
-          _currentSet == 0 ? Icons.play_arrow_rounded : Icons.check_circle_outline,
-          size: 28,
-        ),
+        icon: _currentSet == 0
+            ? DirectionalIcon(icon: Icons.play_arrow_rounded, size: 28)
+            : const Icon(Icons.check_circle_outline, size: 28),
         label: Text(
-          _currentSet == 0 ? 'Start Set ${_currentSet + 1}' : 'Complete Set',
+          _currentSet == 0 ? l10n.dialog_startSet(_currentSet + 1) : l10n.dialog_completeSet,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         style: FilledButton.styleFrom(
@@ -428,6 +371,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
   }
 
   Widget _buildHoldTimer(BuildContext context, ColorScheme colorScheme) {
+    final l10n = AppLocalizations.of(context);
     final warning = _holdRemaining <= 5;
     final timerColor = warning ? AppTheme.stepsOrange : AppTheme.hydrationBlue;
 
@@ -443,7 +387,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
           child: Column(
             children: [
               Text(
-                'Hold',
+                l10n.dialog_hold,
                 style: TextStyle(
                   color: AppTheme.textSecondary(context),
                   fontSize: 14,
@@ -467,7 +411,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: _holdProgress,
+                    value: 1.0 - _holdElapsed,
                     backgroundColor: AppTheme.subtleFill(context, 0.15),
                     color: timerColor,
                     minHeight: 6,
@@ -480,9 +424,9 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
         const SizedBox(height: 12),
         TextButton.icon(
           onPressed: _completeSet,
-          icon: Icon(Icons.skip_next_rounded, color: AppTheme.textSecondary(context)),
+            icon: DirectionalIcon(icon: Icons.skip_next_rounded, color: AppTheme.textSecondary(context)),
           label: Text(
-            'Skip Hold',
+            l10n.dialog_skipHold,
             style: TextStyle(color: AppTheme.textSecondary(context)),
           ),
         ),
@@ -491,6 +435,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
   }
 
   Widget _buildRestTimer(BuildContext context, ColorScheme colorScheme) {
+    final l10n = AppLocalizations.of(context);
     final warning = _restRemaining <= 5;
     final timerColor = warning ? AppTheme.stepsOrange : AppTheme.hydrationBlue;
 
@@ -506,7 +451,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
           child: Column(
             children: [
               Text(
-                'Rest',
+                l10n.dialog_rest,
                 style: TextStyle(
                   color: AppTheme.textSecondary(context),
                   fontSize: 14,
@@ -545,8 +490,8 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
-              icon: Icon(
-                _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+              icon: DirectionalIcon(
+                icon: _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
                 color: AppTheme.textSecondary(context),
               ),
               onPressed: _togglePause,
@@ -556,7 +501,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
             ),
             const SizedBox(width: 16),
             IconButton(
-              icon: Icon(Icons.skip_next_rounded, color: AppTheme.textSecondary(context)),
+          icon: DirectionalIcon(icon: Icons.skip_next_rounded, color: AppTheme.textSecondary(context)),
               onPressed: _skipRest,
               style: IconButton.styleFrom(
                 backgroundColor: AppTheme.subtleFill(context, 0.10),
@@ -568,53 +513,24 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
     );
   }
 
-  Widget _buildCompleteRing(BuildContext context) {
+  Widget _buildCompleteBars(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final green = AppTheme.achievementGreen;
-    final ringSize = 180.0;
-    final strokeWidth = 10.0;
 
     return Column(
       children: [
-        SizedBox(
-          width: ringSize,
-          height: ringSize,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: AppTheme.kAnimProgress,
-                curve: AppTheme.kEaseOut,
-                builder: (context, animatedProgress, _) {
-                  return SizedBox(
-                    width: ringSize,
-                    height: ringSize,
-                    child: CircularProgressIndicator(
-                      value: animatedProgress,
-                      strokeWidth: strokeWidth,
-                      backgroundColor: AppTheme.subtleFill(context, 0.12),
-                      color: green,
-                      strokeCap: StrokeCap.round,
-                    ),
-                  );
-                },
-              ),
-              Icon(Icons.check_circle, color: green, size: 64),
-            ],
-          ),
+        SetProgressBars(
+          currentSet: _totalSets,
+          totalSets: _totalSets,
+          isComplete: true,
+          label: l10n.dialog_allSetsDone,
+          semanticsLabel: l10n.dialog_allSetsDone,
         ),
         const SizedBox(height: 16),
+        Icon(Icons.check_circle, color: green, size: 48),
+        const SizedBox(height: 8),
         Text(
-          'All Sets Done!',
-          style: TextStyle(
-            color: green,
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Great work!',
+          l10n.dialog_greatWork,
           style: TextStyle(
             color: AppTheme.textSecondary(context),
             fontSize: 16,
@@ -625,6 +541,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
   }
 
   Widget _buildCompleteState(BuildContext context, ColorScheme colorScheme) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       children: [
         SizedBox(
@@ -632,9 +549,9 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
           height: 56,
           child: FilledButton.icon(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_rounded, size: 22),
-            label: const Text(
-              'Back to Workout',
+            icon: const DirectionalIcon(icon: Icons.arrow_back_rounded, size: 22),
+            label: Text(
+              l10n.dialog_backToWorkout,
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             style: FilledButton.styleFrom(
@@ -650,6 +567,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
   }
 
   Widget _buildEndWorkoutButton(BuildContext context, ColorScheme colorScheme) {
+    final l10n = AppLocalizations.of(context);
     return SizedBox(
       width: double.infinity,
       height: 48,
@@ -663,7 +581,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
         },
         icon: Icon(Icons.stop_circle_outlined, color: colorScheme.error, size: 20),
         label: Text(
-          'End Workout',
+          l10n.dialog_endWorkout,
           style: TextStyle(color: colorScheme.error, fontWeight: FontWeight.w500),
         ),
         style: OutlinedButton.styleFrom(
@@ -677,6 +595,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
   }
 
   void _confirmExit() {
+    final l10n = AppLocalizations.of(context);
     HapticFeedback.lightImpact();
     showDialog(
       context: context,
@@ -684,20 +603,20 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        title: const Text('End Workout?'),
+        title: Text(l10n.dialog_endWorkoutTitle),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'You\'ve completed $_currentSet of $_totalSets sets.',
+              l10n.dialog_endWorkoutBody(_currentSet, _totalSets),
               style: TextStyle(color: AppTheme.textSecondary(context)),
             ),
             if (_isResting)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  'Rest timer is active.',
+                  l10n.dialog_restTimerActive,
                   style: TextStyle(
                     color: AppTheme.stepsOrange,
                     fontSize: 13,
@@ -710,13 +629,15 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
-              'Cancel',
+              l10n.dialog_cancel,
               style: TextStyle(color: AppTheme.textSecondary(context)),
             ),
           ),
           FilledButton(
             onPressed: () {
               HapticFeedback.mediumImpact();
+              // Mark the exercise as completed so the user gets credit
+              widget.onComplete();
               Navigator.of(ctx).pop();
               Navigator.of(context).pop();
             },
@@ -726,7 +647,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('End Workout'),
+            child: Text(l10n.dialog_endWorkout),
           ),
         ],
       ),
@@ -734,6 +655,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
   }
 
   void _showInfo(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     HapticFeedback.lightImpact();
     final ex = widget.exercise;
     final cat = ex.category;
@@ -794,7 +716,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Equipment: ${ex.equipment}',
+                  l10n.dialog_equipment(ex.equipment!),
                   style: TextStyle(color: AppTheme.textTertiary(context)),
                 ),
               ),
@@ -804,7 +726,7 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
               child: OutlinedButton.icon(
                 onPressed: () => _launchYouTube(ex.name),
                 icon: const Icon(Icons.play_circle_outline),
-                label: const Text('Watch on YouTube'),
+                label: Text(l10n.dialog_watchOnYoutube),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(
                     color: Theme.of(context)

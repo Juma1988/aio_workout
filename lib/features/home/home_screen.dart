@@ -1,12 +1,29 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/clock.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/exercise.dart';
+import '../../data/weight_entry.dart';
 import '../../data/workout_log.dart';
+import '../../l10n/app_localizations.dart';
+import '../../models/step_data.dart';
+import '../achievements/models/achievement_category.dart';
+import '../achievements/providers/achievement_provider.dart';
+import '../achievements/widgets/achievement_preview_card.dart';
 import '../dialogs/achivment_dialog.dart';
 import '../dialogs/exercise_progress_dialog.dart';
+import '../dialogs/weight_log_sheet.dart';
+import '../steps/step_history_screen.dart';
+import 'models/trend_info.dart';
+import 'painters/weight_spark_painter.dart';
+import 'rest_timer.dart';
+import 'widgets/exercise_info_sheet.dart';
+import 'widgets/progress_ring.dart';
+import 'widgets/top_action.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onThemeToggle;
@@ -20,6 +37,29 @@ class HomeScreen extends StatefulWidget {
   final int currentWeek;
   final int currentDay;
   final void Function(int durationSeconds, DateTime startTime)? onWorkoutComplete;
+  final List<WeightEntry>? weightEntries;
+  final double? weightGoalKg;
+  final ValueChanged<WeightEntry>? onWeightLogged;
+  final Clock clock;
+  final VoidCallback? onRefresh;
+  final int restTimerSeconds;
+  final List<WorkoutSession>? recentSessions;
+
+  // Home section visibility
+  final bool showSteps;
+  final bool showAchievements;
+  final bool showHydration;
+  final bool showWeightTrend;
+  final bool showThisWeek;
+
+  final int stepsPerClick;
+  final int hydrationMLPerClick;
+  final int stepsGoal;
+  final bool useSensor;
+
+  /// When true, today's workout has already been completed.
+  /// Instead of showing the exercise list, a "Workout Complete!" message is shown.
+  final bool isTodayCompleted;
 
   const HomeScreen({
     super.key,
@@ -34,47 +74,90 @@ class HomeScreen extends StatefulWidget {
     this.currentWeek = 1,
     this.currentDay = 1,
     this.onWorkoutComplete,
+    this.weightEntries,
+    this.weightGoalKg,
+    this.onWeightLogged,
+    this.clock = const SystemClock(),
+    this.onRefresh,
+    this.restTimerSeconds = 0,
+    this.recentSessions,
+    this.showSteps = true,
+    this.showAchievements = true,
+    this.showHydration = true,
+    this.showWeightTrend = true,
+    this.showThisWeek = true,
+    this.stepsPerClick = 200,
+    this.hydrationMLPerClick = 250,
+    this.stepsGoal = 10000,
+    this.useSensor = true,
+    this.isTodayCompleted = false,
   });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-final todayExercises = [
-  highKneeMarch,
-  plank,
-  deadBug,
-  gluteBridge,
-  birdDog,
-  sideLyingLegRaise,
-];
+List<Exercise> getTodayExercises(int day) {
+  if (isRestDay(day)) {
+    return [restExercise];
+  }
+  return [
+    highKneeMarch,
+    plank,
+    deadBug,
+    gluteBridge,
+    birdDog,
+    sideLyingLegRaise,
+  ];
+}
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
+  Timer? _greetingTimer;
+
   double get _hydrationLiters => widget.hydrationLiters ?? 0.0;
   int get _steps => widget.steps ?? 0;
   Set<String> get _completedUuids => widget.completedExerciseUuids;
+  List<WeightEntry> get _weightEntries => widget.weightEntries ?? [];
+  double? get _weightGoalKg => widget.weightGoalKg;
 
   late final AnimationController _entranceController;
   late final AnimationController _barsController;
   late final AnimationController _hydrationTapController;
   late final AnimationController _stepsTapController;
+  late final AnimationController _weightTapController;
+  late final AnimationController _weightChartController;
+  late final Animation<double> _weightChartAnim;
 
   bool _reduceMotion = false;
-  final Set<String> _completedViaDialog = {};
+  bool _hasAnimated = false;
+  String _lastGreeting = '';
   DateTime? _workoutStartTime;
-
-  String get _focus => getFocusForDay(widget.currentWeek, widget.currentDay);
+  final List<CurvedAnimation?> _cachedSectionCurves = List.filled(7, null);
+  List<WeightEntry>? _cachedSortedWeights;
+  TrendInfo? _cachedTrend;
+  String? _restTimerExerciseUuid;
 
   String get _greeting {
-    final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning!';
-    if (hour < 17) return 'Good afternoon!';
-    return 'Good evening!';
+    final now = widget.clock.now();
+    final hour = now.hour;
+    if (hour < 12) return 'morning';
+    if (hour < 17) return 'afternoon';
+    return 'evening';
   }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _lastGreeting = _greeting;
+    _greetingTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (!mounted) return;
+      final newGreeting = _greeting;
+      if (newGreeting != _lastGreeting) {
+        setState(() => _lastGreeting = newGreeting);
+      }
+    });
     _entranceController = AnimationController(
       vsync: this,
       duration: AppTheme.kAnimEntrance,
@@ -91,42 +174,82 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       vsync: this,
       duration: AppTheme.kAnimFast,
     );
+    _weightTapController = AnimationController(
+      vsync: this,
+      duration: AppTheme.kAnimFast,
+    );
+    _weightChartController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _weightChartAnim = CurvedAnimation(
+      parent: _weightChartController,
+      curve: AppTheme.kEaseOut,
+    );
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _reduceMotion = MediaQuery.of(context).disableAnimations;
+    if (_hasAnimated) return;
+    _hasAnimated = true;
     if (!_reduceMotion) {
       _entranceController.forward();
       _barsController.forward();
+      _weightChartController.forward();
     } else {
       _entranceController.value = 1.0;
       _barsController.value = 1.0;
+      _weightChartController.value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.weightEntries != widget.weightEntries) {
+      _cachedSortedWeights = null;
+      _cachedTrend = null;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      setState(() {});
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _greetingTimer?.cancel();
+    for (final c in _cachedSectionCurves) {
+      c?.dispose();
+    }
     _entranceController.dispose();
     _barsController.dispose();
     _hydrationTapController.dispose();
     _stepsTapController.dispose();
+    _weightTapController.dispose();
+    _weightChartController.dispose();
     super.dispose();
   }
 
   Widget _buildStaggeredSection({required Widget child, required int index}) {
     if (_reduceMotion) return child;
 
-    final double start = (index * 0.115).clamp(0.0, 0.7);
-    final Animation<double> curved = CurvedAnimation(
+    final idx = index.clamp(0, 6);
+    _cachedSectionCurves[idx] ??= CurvedAnimation(
       parent: _entranceController,
       curve: Interval(
-        start,
-        (start + 0.38).clamp(0.0, 1.0),
+        (idx * 0.115).clamp(0.0, 0.7),
+        ((idx * 0.115) + 0.38).clamp(0.0, 1.0),
         curve: AppTheme.kEaseOut,
       ),
     );
+    final curved = _cachedSectionCurves[idx]!;
 
     return FadeTransition(
       opacity: curved,
@@ -142,43 +265,92 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final children = <Widget>[
+      _buildStaggeredSection(child: _buildHeader(context), index: 0),
+    ];
+
+    int sectionIndex = 1;
+
+    if (widget.showAchievements) {
+      children.addAll([
+        const SizedBox(height: 16),
+        _buildStaggeredSection(
+          child: _buildAchievementCard(context),
+          index: sectionIndex++,
+        ),
+      ]);
+    }
+
+    if (widget.showSteps || widget.showHydration) {
+      final rowChildren = <Widget>[];
+      if (widget.showSteps) {
+        rowChildren.add(Expanded(child: _buildStepsCard(context)));
+      }
+      if (widget.showHydration) {
+        rowChildren.add(Expanded(child: _buildHydrationCard(context)));
+      }
+
+      children.addAll([
+        const SizedBox(height: 16),
+        _buildStaggeredSection(
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: rowChildren,
+            ),
+          ),
+          index: sectionIndex++,
+        ),
+      ]);
+    }
+
+    if (widget.showThisWeek) {
+      children.addAll([
+        const SizedBox(height: 16),
+        _buildStaggeredSection(
+          child: _buildThisWeekSection(context),
+          index: sectionIndex++,
+        ),
+      ]);
+    }
+
+    if (widget.showWeightTrend) {
+      children.addAll([
+        const SizedBox(height: 16),
+        _buildStaggeredSection(
+          child: _buildWeightTrendCard(context),
+          index: sectionIndex++,
+        ),
+      ]);
+    }
+
+    children.addAll([
+      const SizedBox(height: 16),
+      _buildStaggeredSection(
+        child: _buildTodaysWorkoutSection(context),
+        index: sectionIndex++,
+      ),
+    ]);
+
     return Semantics(
       label: 'Home dashboard',
       child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildStaggeredSection(child: _buildHeader(context), index: 0),
-              const SizedBox(height: 24),
-              _buildStaggeredSection(
-                child: _buildAchievementCard(context),
-                index: 1,
-              ),
-              const SizedBox(height: 8),
-              _buildStaggeredSection(
-                child: Row(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: RefreshIndicator(
+              onRefresh: () async => widget.onRefresh?.call(),
+              displacement: 60,
+              edgeOffset: 8,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: _buildStepsCard(context)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildHydrationCard(context)),
-                  ],
+                  children: children,
                 ),
-                index: 2,
               ),
-              const SizedBox(height: 24),
-              _buildStaggeredSection(
-                child: _buildThisWeekSection(context),
-                index: 3,
-              ),
-              const SizedBox(height: 24),
-              _buildStaggeredSection(
-                child: _buildTodaysWorkoutSection(context),
-                index: 4,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -186,6 +358,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final greetingText = switch (_greeting) {
+      'morning' => l10n.home_greeting_morning,
+      'afternoon' => l10n.home_greeting_afternoon,
+      _ => l10n.home_greeting_evening,
+    };
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -194,9 +372,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Semantics(
-                label: _greeting,
+                label: greetingText,
                 child: Text(
-                  _greeting,
+                  greetingText,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary(context),
@@ -205,7 +383,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               const SizedBox(height: 4),
               Text(
-                "Let's crush today's workout",
+                l10n.home_todaysWorkout,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: AppTheme.textSecondary(context),
                 ),
@@ -214,10 +392,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
         const SizedBox(width: 12),
-        _TopAction(
+        TopAction(
           icon: Theme.of(context).brightness == Brightness.dark
-              ? Icons.wb_sunny_rounded
-              : Icons.nightlight_round,
+              ? Icons.light_mode_rounded
+              : Icons.dark_mode_rounded,
           onTap: widget.onThemeToggle,
           semanticsLabel: 'Toggle theme',
         ),
@@ -226,213 +404,169 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildAchievementCard(BuildContext context) {
-    final green = AppTheme.achievementGreen;
+    final l10n = AppLocalizations.of(context);
+    final provider = context.watch<AchievementProvider>();
+    final cats = {
+      for (final cat in _allCategories)
+        cat.label: provider.unlockedFor(cat),
+    };
 
-    return Semantics(
-      label: 'Achievements: 1 of 12 unlocked. Latest: First Steps',
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: green.withValues(alpha: 0.25), width: 1),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            HapticFeedback.lightImpact();
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const AchievementsDialog(),
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: green.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(Icons.emoji_events, color: green, size: 26),
-                    ),
-                    Positioned(
-                      top: -2,
-                      right: -2,
-                      child: Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          color: AppTheme.stepsOrange,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppTheme.cardColor(context),
-                            width: 2,
-                          ),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            '1',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Achievements',
-                        style: TextStyle(
-                          color: green,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '1 / 12 unlocked',
-                        style: TextStyle(
-                          color: AppTheme.textPrimary(context),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        'Latest: First Steps',
-                        style: TextStyle(
-                          color: AppTheme.textTertiary(context),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  color: AppTheme.textDisabled(context),
-                ),
-              ],
-            ),
+    return AchievementPreviewCard(
+      count: provider.unlockedCount,
+      totalCount: provider.totalCount,
+      latestAchievement: provider.results
+          .where((r) => r.isUnlocked)
+          .toList()
+          .lastOrNull
+          ?.definition
+          .localizedTitle(l10n),
+      closest: provider.closestToUnlock,
+      categoryState: cats,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const AchievementsDialog(),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
+  static const _allCategories = AchievementCategory.values;
+
   Widget _buildStepsCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final orange = AppTheme.stepsOrange;
+    final goal = widget.stepsGoal;
+    final distanceKm = StepEntry.stepsToDistanceKm(_steps);
+    final calories = StepEntry.stepsToCalories(_steps);
+    final card = Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: orange.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Stack(
+          children: [
+            Center(
+              child: Semantics(
+                excludeSemantics: true,
+                child: Icon(
+                  Icons.directions_run,
+                  size: 80,
+                  color: orange.withValues(alpha: 0.10),
+                ),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.home_steps,
+                            style: TextStyle(
+                              color: orange,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          TweenAnimationBuilder<double>(
+                            tween: Tween(
+                              begin: 0.0,
+                              end: _steps.toDouble(),
+                            ),
+                            duration: AppTheme.kAnimMedium,
+                            curve: AppTheme.kEaseOut,
+                            builder: (context, animatedSteps, _) {
+                              return Text(
+                                animatedSteps.toInt().toString(),
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary(context),
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.2,
+                                ),
+                              );
+                            },
+                          ),
+                          Text(
+                            '${goal ~/ 1000}k goal',
+                            style: TextStyle(
+                              color: AppTheme.textSecondary(context),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ProgressRing(
+                      progress: (_steps / goal.toDouble()).clamp(0.0, 1.0),
+                      centerLabel: '${((_steps / goal) * 100).round()}%',
+                      bottomLabel: '${goal ~/ 1000}k',
+                      color: orange,
+                      size: 50,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _stepMetricChip(
+                      context,
+                      Icons.straighten,
+                      '${distanceKm.toStringAsFixed(1)} km',
+                    ),
+                    const SizedBox(width: 8),
+                    _stepMetricChip(
+                      context,
+                      Icons.local_fire_department,
+                      '$calories kcal',
+                    ),
+                    const Spacer(),
+                    if (widget.useSensor)
+                      Icon(
+                        Icons.sensors,
+                        size: 14,
+                        color: AppTheme.achievementGreen,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
 
     return Semantics(
-      label: 'Steps: $_steps of 10000',
+      label: '${l10n.home_steps}: $_steps of $goal',
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => _onStepsTap(context),
+        onLongPress: () => _openStepHistory(context),
         child: AnimatedBuilder(
           animation: _stepsTapController,
+          child: card,
           builder: (context, child) {
             final scale = _reduceMotion
                 ? 1.0
                 : 0.92 + (0.08 * _stepsTapController.value);
             return Transform.scale(
               scale: scale,
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: orange.withValues(alpha: 0.25),
-                    width: 1,
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: orange.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                Icons.directions_run,
-                                color: orange,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Steps',
-                                      style: TextStyle(
-                                        color: orange,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    TweenAnimationBuilder<double>(
-                                      key: ValueKey(_steps),
-                                      tween: Tween(
-                                        begin: 0.0,
-                                        end: _steps.toDouble(),
-                                      ),
-                                      duration: AppTheme.kAnimMedium,
-                                      curve: AppTheme.kEaseOut,
-                                      builder: (context, animatedSteps, _) {
-                                        return Text(
-                                          animatedSteps.toInt().toString(),
-                                          style: TextStyle(
-                                            color: AppTheme.textPrimary(context),
-                                            fontSize: 26,
-                                            fontWeight: FontWeight.w800,
-                                            height: 1.2,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    Text(
-                                      'Tap to add',
-                                      style: TextStyle(
-                                        color: AppTheme.textTertiary(context),
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _ProgressRing(
-                        progress: (_steps / 10000.0).clamp(0.0, 1.0),
-                        centerLabel: '${((_steps / 10000) * 100).round()}%',
-                        bottomLabel: '10k',
-                        color: orange,
-                        size: 50,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              child: child,
             );
           },
         ),
@@ -440,9 +574,41 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  Widget _stepMetricChip(BuildContext context, IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.subtleFill(context, 0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: AppTheme.textTertiary(context)),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: AppTheme.textTertiary(context),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openStepHistory(BuildContext context) {
+    HapticFeedback.lightImpact();
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const StepHistoryScreen()),
+    );
+  }
+
   void _onStepsTap(BuildContext context) {
     HapticFeedback.lightImpact();
-    final newVal = _steps + 200;
+    final newVal = _steps + widget.stepsPerClick;
     widget.onStepsChanged?.call(newVal);
     if (!_reduceMotion) {
       _stepsTapController.forward(from: 0.0).then((_) {
@@ -453,7 +619,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _onHydrationTap(BuildContext context) {
     HapticFeedback.lightImpact();
-    final newVal = (_hydrationLiters + 0.25).clamp(0.0, 2.5);
+    final increment = widget.hydrationMLPerClick / 1000.0;
+    final newVal = (_hydrationLiters + increment).clamp(0.0, 2.5);
     widget.onHydrationChanged?.call(newVal);
     if (!_reduceMotion) {
       _hydrationTapController.forward(from: 0.0).then((_) {
@@ -463,107 +630,109 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildHydrationCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final blue = AppTheme.hydrationBlue;
+    final card = Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: blue.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Stack(
+          children: [
+            // ── Background layer: decorative large icon ──
+            Center(
+              child: Semantics(
+                excludeSemantics: true,
+                child: Icon(
+                  Icons.water_drop,
+                  size: 80,
+                  color: blue.withValues(alpha: 0.10),
+                ),
+              ),
+            ),
+            // ── Foreground layer: content ──
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.home_hydration,
+                        style: TextStyle(
+                          color: blue,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(
+                          begin: 0.0,
+                          end: _hydrationLiters,
+                        ),
+                        duration: AppTheme.kAnimMedium,
+                        curve: AppTheme.kEaseOut,
+                        builder: (context, animatedLiters, _) {
+                          return Text(
+                            '${animatedLiters.toStringAsFixed(1)}L',
+                            style: TextStyle(
+                              color: AppTheme.textPrimary(context),
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Tap to add',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary(context),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                ProgressRing(
+                  progress: (_hydrationLiters / 2.5).clamp(0.0, 1.0),
+                  centerLabel:
+                      '${((_hydrationLiters / 2.5) * 100).round()}%',
+                  bottomLabel: '2.5L',
+                  color: blue,
+                  size: 50,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
 
     return Semantics(
-      label: 'Hydration: ${_hydrationLiters.toStringAsFixed(1)} liters of 2.5',
+      label: '${l10n.home_hydration}: ${_hydrationLiters.toStringAsFixed(1)} liters of 2.5',
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => _onHydrationTap(context),
         child: AnimatedBuilder(
           animation: _hydrationTapController,
+          child: card,
           builder: (context, child) {
             final scale = _reduceMotion
                 ? 1.0
                 : 0.92 + (0.08 * _hydrationTapController.value);
             return Transform.scale(
               scale: scale,
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: blue.withValues(alpha: 0.25),
-                    width: 1,
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: blue.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                Icons.water_drop,
-                                color: blue,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Hydration',
-                                    style: TextStyle(
-                                      color: blue,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  TweenAnimationBuilder<double>(
-                                    key: ValueKey(_hydrationLiters),
-                                    tween: Tween(
-                                      begin: 0.0,
-                                      end: _hydrationLiters,
-                                    ),
-                                    duration: AppTheme.kAnimMedium,
-                                    curve: AppTheme.kEaseOut,
-                                    builder: (context, animatedLiters, _) {
-                                      return Text(
-                                        '${animatedLiters.toStringAsFixed(1)}L',
-                                        style: TextStyle(
-                                          color: AppTheme.textPrimary(context),
-                                          fontSize: 26,
-                                          fontWeight: FontWeight.w800,
-                                          height: 1.2,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  Text(
-                                    'Tap to add',
-                                    style: TextStyle(
-                                      color: AppTheme.textTertiary(context),
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _ProgressRing(
-                        progress: (_hydrationLiters / 2.5).clamp(0.0, 1.0),
-                        centerLabel:
-                            '${((_hydrationLiters / 2.5) * 100).round()}%',
-                        bottomLabel: '2.5L',
-                        color: blue,
-                        size: 50,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              child: child,
             );
           },
         ),
@@ -572,11 +741,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildThisWeekSection(BuildContext context) {
-    final days = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-    final levels = [0.55, 0.35, 0.65, 0.25, 0.0, 0.9, 0.35];
+    final l10n = AppLocalizations.of(context);
+    final days = [
+      l10n.weekday_monday_abbr,
+      l10n.weekday_tuesday_abbr,
+      l10n.weekday_wednesday_abbr,
+      l10n.weekday_thursday_abbr,
+      l10n.weekday_friday_abbr,
+      l10n.weekday_saturday_abbr,
+      l10n.weekday_sunday_abbr,
+    ];
+
+    final levels = _computeWeeklyLevels();
+    final totalWorkouts = levels.fold<int>(0, (sum, l) => sum + (l > 0 ? 1 : 0));
 
     return Semantics(
-      label: 'This week activity chart',
+      label: '${l10n.home_thisWeek} activity chart',
       child: Card(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
@@ -592,7 +772,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'This Week',
+                    l10n.home_thisWeek,
                     style: TextStyle(
                       color: AppTheme.textPrimary(context),
                       fontWeight: FontWeight.w600,
@@ -601,7 +781,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   const Spacer(),
                   Text(
-                    '4 workouts',
+                    '$totalWorkouts workouts',
                     style: TextStyle(
                       color: AppTheme.textTertiary(context),
                       fontSize: 13,
@@ -682,17 +862,137 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildTodaysWorkoutSection(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final completed = _completedUuids.length;
 
+    // ── Completed for today: show a done card instead of the exercise list ──
+    if (widget.isTodayCompleted) {
+      final nextProgress = ProgramProgress(
+        currentWeek: widget.currentWeek,
+        currentDay: widget.currentDay,
+      ).advance();
+      final nextFocus = getFocusForDay(nextProgress.currentWeek, nextProgress.currentDay);
+
+      return Semantics(
+        label: '${l10n.home_todaysWorkout} complete',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  l10n.home_todaysWorkout,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary(context),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.achievementGreen.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    l10n.notif_done,
+                    style: TextStyle(
+                      color: AppTheme.achievementGreen,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: AppTheme.achievementGreen.withValues(alpha: 0.25),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: AppTheme.achievementGreen.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.emoji_events_rounded,
+                        color: AppTheme.achievementGreen,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.home_workoutComplete,
+                            style: TextStyle(
+                              color: AppTheme.textPrimary(context),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            l10n.home_noExercises,
+                            style: TextStyle(
+                              color: AppTheme.textSecondary(context),
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.subtleFill(context, 0.08),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '${l10n.home_week} ${nextProgress.currentWeek} \u2014 ${l10n.home_day} ${nextProgress.currentDay} \u2014 $nextFocus',
+                              style: TextStyle(
+                                color: AppTheme.textTertiary(context),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Semantics(
-      label: "Today's workout",
+      label: l10n.home_todaysWorkout,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Text(
-                "Today's Workout",
+                l10n.home_todaysWorkout,
                 style: TextStyle(
                   color: AppTheme.textPrimary(context),
                   fontSize: 17,
@@ -710,9 +1010,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Semantics(
-                  label: '$completed of ${todayExercises.length} exercises completed',
+                  label: isRestDay(widget.currentDay)
+                      ? (_allExercisesDone ? '${l10n.home_restDay} complete' : l10n.home_restDay)
+                      : '$completed of ${getTodayExercises(widget.currentDay).length} ${l10n.home_exercises} ${l10n.home_completed}',
                   child: Text(
-                    '$completed/${todayExercises.length}',
+                    isRestDay(widget.currentDay)
+                        ? (_allExercisesDone ? '6/6' : '0/6')
+                        : '$completed/${getTodayExercises(widget.currentDay).length}',
                     style: TextStyle(
                       color: AppTheme.textSecondary(context),
                       fontSize: 13,
@@ -725,7 +1029,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 4),
           Text(
-            'Week ${widget.currentWeek} \u2014 Day ${widget.currentDay} \u2014 $_focus',
+            '${l10n.home_week} ${widget.currentWeek} \u2014 ${l10n.home_day} ${widget.currentDay} \u2014 ${getLocalizedFocus(l10n, widget.currentWeek, widget.currentDay)}',
             style: TextStyle(
               color: AppTheme.textTertiary(context),
               fontSize: 13,
@@ -733,44 +1037,78 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 16),
 
-          ...List.generate(todayExercises.length, (i) {
-            final ex = todayExercises[i];
+          // ── Rest timer banner ──
+          if (_restTimerExerciseUuid != null && widget.restTimerSeconds > 0)
+            RestTimer(
+              key: ValueKey('rest_$_restTimerExerciseUuid'),
+              seconds: widget.restTimerSeconds,
+              onComplete: () {
+                if (mounted) setState(() => _restTimerExerciseUuid = null);
+              },
+            ),
+
+          ...List.generate(getTodayExercises(widget.currentDay).length, (i) {
+            final ex = getTodayExercises(widget.currentDay)[i];
             final isDone = _completedUuids.contains(ex.uuid);
-            final isDoneViaDialog = _completedViaDialog.contains(ex.uuid);
               return Padding(
-              padding: EdgeInsets.only(bottom: i < todayExercises.length - 1 ? 8 : 0),
+              padding: EdgeInsets.only(bottom: i < getTodayExercises(widget.currentDay).length - 1 ? 8 : 0),
               child: _buildExerciseTile(
                 exercise: ex,
                 isDone: isDone,
-                isDoneViaDialog: isDoneViaDialog,
                 onToggle: () {
                   final uuid = ex.uuid;
-                  if (_completedUuids.contains(uuid)) {
-                    setState(() => _completedViaDialog.remove(uuid));
-                  }
+                  final wasDone = _completedUuids.contains(uuid);
                   widget.onExerciseToggled?.call(uuid);
+                  if (!wasDone) _startRestTimer(uuid);
                 },
-                onPlay: () => _startExercise(context, ex),
+                onPlay: () => _onPlayExercise(context, ex),
                 onInfo: () => _showExerciseInfo(context, ex),
               ),
             );
           }),
 
+          // ── Finish Workout button (shows when all exercises are done) ──
+          if (_allExercisesDone) ...[
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _finishWorkout,
+                icon: const Icon(Icons.check_circle_rounded, size: 22),
+                label: Text(
+                  l10n.home_completeWorkout,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  void _startExercise(BuildContext context, Exercise ex) {
+  void _startRestTimer(String exerciseUuid) {
+    if (widget.restTimerSeconds <= 0) return;
+    setState(() => _restTimerExerciseUuid = exerciseUuid);
+  }
+
+  void _onPlayExercise(BuildContext context, Exercise ex) {
     HapticFeedback.lightImpact();
-    _workoutStartTime ??= DateTime.now();
+    _workoutStartTime ??= widget.clock.now();
+    setState(() => _restTimerExerciseUuid = null); // dismiss rest timer
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ExerciseProgressDialog(
           exercise: ex,
           onComplete: () {
             widget.onExerciseCompleted?.call(ex.uuid);
-            setState(() => _completedViaDialog.add(ex.uuid));
+            _startRestTimer(ex.uuid);
             _checkAutoComplete();
           },
         ),
@@ -779,20 +1117,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _checkAutoComplete() {
-    final allDone = todayExercises
-        .every((e) => _completedViaDialog.contains(e.uuid));
+    final exercises = getTodayExercises(widget.currentDay);
+    final allDone = exercises
+        .every((e) => _completedUuids.contains(e.uuid));
     if (!allDone) return;
 
-    final duration = _workoutStartTime != null
-        ? DateTime.now().difference(_workoutStartTime!).inSeconds
-        : 0;
-    widget.onWorkoutComplete?.call(duration, _workoutStartTime ?? DateTime.now());
+    _finishWorkout();
   }
+
+  void _finishWorkout() {
+    final duration = _workoutStartTime != null
+        ? widget.clock.now().difference(_workoutStartTime!).inSeconds
+        : 0;
+    widget.onWorkoutComplete?.call(duration, _workoutStartTime ?? widget.clock.now());
+  }
+
+  bool get _allExercisesDone {
+    final exercises = getTodayExercises(widget.currentDay);
+    return exercises.isNotEmpty &&
+        exercises.every((e) => _completedUuids.contains(e.uuid));
+  }
+
+
 
   Widget _buildExerciseTile({
     required Exercise exercise,
     required bool isDone,
-    required bool isDoneViaDialog,
     required VoidCallback onToggle,
     required VoidCallback onPlay,
     required VoidCallback onInfo,
@@ -813,12 +1163,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           children: [
             Semantics(
               label: isDone ? 'Mark as incomplete' : 'Mark as complete',
-              child: GestureDetector(
+              child: InkWell(
                 onTap: () {
                   HapticFeedback.lightImpact();
                   onToggle();
                 },
-                behavior: HitTestBehavior.opaque,
+                borderRadius: BorderRadius.circular(5),
                 child: Padding(
                   padding: const EdgeInsets.all(11),
                   child: AnimatedContainer(
@@ -885,12 +1235,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Semantics(
-                  label: isDoneViaDialog
+                  label: isDone
                       ? '${exercise.name} completed'
                       : 'Start exercise ${exercise.name}',
-                  child: GestureDetector(
-                    onTap: isDoneViaDialog ? null : onPlay,
-                    behavior: HitTestBehavior.opaque,
+                  child: InkWell(
+                    onTap: isDone ? null : onPlay,
+                    borderRadius: BorderRadius.circular(8),
                     child: AnimatedContainer(
                       duration: AppTheme.kAnimFast,
                       curve: AppTheme.kEaseOut,
@@ -898,17 +1248,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       height: 44,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: isDoneViaDialog
+                        color: isDone
                             ? green.withValues(alpha: 0.15)
                             : AppTheme.subtleFill(context, 0.10),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        isDoneViaDialog
+                        isDone
                             ? Icons.check_circle_rounded
                             : Icons.play_circle_outline,
                         size: 20,
-                        color: isDoneViaDialog
+                        color: isDone
                             ? green
                             : AppTheme.textSecondary(context),
                       ),
@@ -918,9 +1268,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(width: 4),
                 Semantics(
                   label: 'Show exercise info for ${exercise.name}',
-                  child: GestureDetector(
+                  child: InkWell(
                     onTap: onInfo,
-                    behavior: HitTestBehavior.opaque,
+                    borderRadius: BorderRadius.circular(8),
                     child: Container(
                       width: 44,
                       height: 44,
@@ -947,220 +1297,284 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _showExerciseInfo(BuildContext context, Exercise ex) {
     HapticFeedback.lightImpact();
-    final cat = ex.category;
-    final muscle = ex.targetMuscle;
-    final lvlColor = ex.recommendedLevel.color;
-
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppTheme.subtleFill(context, 0.30),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              ex.name,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 12),
-            if (ex.description != null && ex.description!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  ex.description!,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textSecondary(context),
-                    height: 1.5,
-                  ),
-                ),
-              ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                _pill(context, ex.recommendedLevel.label, lvlColor),
-                _pill(context, muscle.label, muscle.color),
-                _pill(context, cat.label, cat.color),
-              ],
-            ),
-            if (ex.equipment != null && ex.equipment!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Equipment: ${ex.equipment}',
-                  style: TextStyle(color: AppTheme.textTertiary(context)),
-                ),
-              ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => _launchYouTube(ex.name),
-                icon: const Icon(Icons.play_circle_outline),
-                label: const Text('Watch on YouTube'),
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primary
-                        .withValues(alpha: 0.4),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      builder: (ctx) => ExerciseInfoSheet(exercise: ex),
     );
   }
 
-  Future<void> _launchYouTube(String query) async {
-    final encoded = Uri.encodeComponent('$query workout');
-    final url = 'https://www.youtube.com/results?search_query=$encoded';
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  List<double> _computeWeeklyLevels() {
+    final sessions = widget.recentSessions;
+    if (sessions == null || sessions.isEmpty) {
+      return [0.55, 0.35, 0.65, 0.25, 0.0, 0.9, 0.35];
     }
+
+    final now = widget.clock.now();
+    final weekday = now.weekday; // 1=Mon .. 7=Sun
+    final monday = now.subtract(Duration(days: weekday - 1));
+    final mondayDate = DateTime(monday.year, monday.month, monday.day);
+    final weekEnd = mondayDate.add(const Duration(days: 7));
+
+    final counts = List.filled(7, 0);
+    for (final s in sessions) {
+      if (s.date.isBefore(mondayDate) || s.date.isAfter(weekEnd)) continue;
+      final dayIdx = s.date.weekday - 1; // 0=Mon..6=Sun
+      counts[dayIdx]++;
+    }
+
+    final maxCount = counts.reduce((a, b) => a > b ? a : b);
+    if (maxCount == 0) return List.filled(7, 0.0);
+    return counts.map((c) => (c / maxCount).clamp(0.0, 1.0)).toList();
   }
 
-  Widget _pill(BuildContext context, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
+  // ── Weight Chart Card ──
+
+  TrendInfo _computeTrend() {
+    final entries = _weightEntries;
+    if (entries.length < 2) return TrendInfo.none();
+
+    final sorted = List<WeightEntry>.from(entries)
+      ..sort((a, b) => a.date.compareTo(b.date));
+
+    final weekAgo = widget.clock.now().subtract(const Duration(days: 7));
+    final weekEntries = sorted.where((e) => e.date.isAfter(weekAgo)).toList();
+
+    if (weekEntries.length >= 2) {
+      final current = weekEntries.last.weightKg;
+      final previous = weekEntries.first.weightKg;
+      return TrendInfo(
+        changeKg: current - previous,
+        period: 'this week',
+      );
+    }
+
+    final last = sorted.last.weightKg;
+    final prev = sorted[sorted.length - 2].weightKg;
+    return TrendInfo(
+      changeKg: last - prev,
+      period: 'last entry',
+    );
+  }
+
+  void     _onWeightTap(BuildContext context) {
+    HapticFeedback.lightImpact();
+    if (!_reduceMotion) {
+      _weightTapController.forward(from: 0.0).then((_) {
+        if (mounted) _weightTapController.reverse();
+      });
+    }
+    final current = _weightEntries.isNotEmpty
+        ? _weightEntries.reduce((a, b) => a.date.isAfter(b.date) ? a : b).weightKg
+        : 70.0;
+    showDialog(
+      context: context,
+      builder: (ctx) => WeightLogSheet(
+        currentWeightKg: current,
+        weightGoalKg: _weightGoalKg,
+        clock: widget.clock,
+        onSave: (entry) {
+          widget.onWeightLogged?.call(entry);
+          if (!_reduceMotion) {
+            _weightChartController.forward(from: 0.0);
+          }
+        },
       ),
     );
   }
 
-}
+  Widget _buildWeightTrendCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final purple = AppTheme.weightPurple;
+    final entries = _weightEntries;
+    final sorted = List<WeightEntry>.from(entries)
+      ..sort((a, b) => a.date.compareTo(b.date));
+    final currentWeight =
+        sorted.isNotEmpty ? sorted.last.weightKg : 0.0;
+    final trend = _computeTrend();
+    final goalKg = _weightGoalKg;
+    final hasGoal = goalKg != null && goalKg > 0;
+    final goalProgress = hasGoal && currentWeight > 0
+        ? (currentWeight / goalKg).clamp(0.0, 1.0)
+        : 0.0;
 
-class _TopAction extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-  final String semanticsLabel;
-
-  const _TopAction({required this.icon, this.onTap, this.semanticsLabel = ''});
-
-  @override
-  Widget build(BuildContext context) {
     return Semantics(
-      label: semanticsLabel,
-      child: Material(
-        color: AppTheme.topActionBackground(context),
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: SizedBox(
-            width: 42,
-            height: 42,
-            child: Icon(icon, size: 20, color: AppTheme.textSecondary(context)),
+      label: 'Weight tracker, ${currentWeight.toStringAsFixed(1)} kilograms',
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header — matches "This Week": icon + title + meta spacer'd right
+              Row(
+                children: [
+                  Icon(
+                    Icons.monitor_weight_outlined,
+                    color: AppTheme.textSecondary(context),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    l10n.home_weight,
+                    style: TextStyle(
+                      color: AppTheme.textPrimary(context),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (trend.isValid)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(trend.icon, size: 16, color: trend.color(context)),
+                        const SizedBox(width: 4),
+                        Text(
+                          trend.displayText,
+                          style: TextStyle(
+                            color: trend.color(context),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Chart area (110px, same as "This Week" bars)
+              if (sorted.isEmpty)
+                _buildWeightEmpty(context)
+              else ...[
+                SizedBox(
+                  height: 110,
+                  child: GestureDetector(
+                    onTap: () => _onWeightTap(context),
+                    child: AnimatedBuilder(
+                      animation: _weightChartAnim,
+                      builder: (context, _) {
+                        return CustomPaint(
+                          size: const Size(double.infinity, 110),
+                          painter: WeightSparkPainter(
+                            entries: sorted,
+                            lineColor: purple,
+                            animationValue: _reduceMotion
+                                ? 1.0
+                                : _weightChartAnim.value,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                // Footer — current weight + goal progress + last logged
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: currentWeight),
+                      duration: AppTheme.kAnimMedium,
+                      curve: AppTheme.kEaseOut,
+                      builder: (context, animated, _) {
+                        return Text(
+                          '${animated.toStringAsFixed(1)} ${l10n.home_kg}',
+                          style: TextStyle(
+                            color: AppTheme.textPrimary(context),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    if (hasGoal) ...[
+                      SizedBox(
+                        width: 60,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: goalProgress.clamp(0.0, 1.0),
+                            backgroundColor: AppTheme.subtleFill(context),
+                            color: purple,
+                            minHeight: 6,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${(goalProgress * 100).round()}%',
+                        style: TextStyle(
+                          color: AppTheme.textTertiary(context),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    Text(
+                      _lastLoggedText(sorted),
+                      style: TextStyle(
+                        color: AppTheme.textTertiary(context),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ),
         ),
       ),
     );
   }
-}
 
-class _ProgressRing extends StatelessWidget {
-  final double progress;
-  final String centerLabel;
-  final String bottomLabel;
-  final Color color;
-  final double size;
+  String _lastLoggedText(List<WeightEntry> sorted) {
+    if (sorted.isEmpty) return '';
+    final last = sorted.last.date;
+    final diff = widget.clock.now().difference(last);
+    if (diff.inDays == 0) return 'Logged today';
+    if (diff.inDays == 1) return 'Logged yesterday';
+    if (diff.inDays < 7) return 'Logged ${diff.inDays} days ago';
+    return 'Logged ${diff.inDays} days ago';
+  }
 
-  const _ProgressRing({
-    required this.progress,
-    required this.centerLabel,
-    required this.bottomLabel,
-    required this.color,
-    this.size = 46,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final innerSize = size - 4;
-    final stroke = size > 48 ? 4.5 : 3.8;
-    final centerFont = size > 48 ? 12.0 : 10.0;
-    final bottomFont = size > 48 ? 9.0 : 8.0;
-
-    return Semantics(
-      label: '$centerLabel complete',
+  Widget _buildWeightEmpty(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return GestureDetector(
+      onTap: () => _onWeightTap(context),
       child: SizedBox(
-        width: size,
-        height: size,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: innerSize,
-              height: innerSize,
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: progress.clamp(0.0, 1.0)),
-                duration: AppTheme.kAnimProgress,
-                curve: AppTheme.kEaseOut,
-                builder: (context, animatedProgress, _) {
-                  return CircularProgressIndicator(
-                    value: animatedProgress,
-                    strokeWidth: stroke,
-                    backgroundColor: AppTheme.subtleFill(context),
-                    color: color,
-                  );
-                },
+        height: 110,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.monitor_weight_outlined,
+                size: 32,
+                color: AppTheme.textDisabled(context),
               ),
-            ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  centerLabel,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: centerFont,
-                    fontWeight: FontWeight.w700,
-                  ),
+              const SizedBox(height: 4),
+              Text(
+                l10n.home_logWeight,
+                style: TextStyle(
+                  color: AppTheme.textSecondary(context),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                 ),
-                Text(
-                  bottomLabel,
-                  style: TextStyle(
-                    color: AppTheme.textTertiary(context),
-                    fontSize: bottomFont,
-                    height: 1.0,
-                  ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Tap to record',
+                style: TextStyle(
+                  color: AppTheme.textTertiary(context),
+                  fontSize: 12,
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

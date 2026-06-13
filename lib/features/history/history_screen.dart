@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/directional_icon.dart';
+import '../../data/exercise_localizer.dart';
 import '../../data/workout_log.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/workout_storage_service.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  final VoidCallback? onRefresh;
+
+  const HistoryScreen({super.key, this.onRefresh});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -38,6 +43,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +51,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
             child: Text(
-              'History',
+              l10n.history_title,
               style: TextStyle(
                 color: AppTheme.textPrimary(context),
                 fontSize: 28,
@@ -56,7 +62,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Week ${_progress.currentWeek} \u2022 Day ${_progress.currentDay}',
+              '${l10n.history_week} ${_progress.currentWeek} \u2022 ${l10n.history_day} ${_progress.currentDay}',
               style: TextStyle(
                 color: AppTheme.textTertiary(context),
                 fontSize: 14,
@@ -68,40 +74,51 @@ class _HistoryScreenState extends State<HistoryScreen> {
             const Expanded(
               child: Center(child: CircularProgressIndicator()),
             )
-          else if (_sessions.isEmpty)
-            Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.fitness_center_outlined,
-                      size: 48,
-                      color: AppTheme.textDisabled(context),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'No workouts yet',
-                      style: TextStyle(
-                        color: AppTheme.textSecondary(context),
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Complete your first workout to see it here',
-                      style: TextStyle(
-                        color: AppTheme.textTertiary(context),
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
           else
             Expanded(
-              child: _buildWeeklyList(context),
+              child: RefreshIndicator(
+                onRefresh: () async => widget.onRefresh?.call(),
+                displacement: 60,
+                edgeOffset: 8,
+                child: _sessions.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          SizedBox(
+                            height: 300,
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.fitness_center_outlined,
+                                    size: 48,
+                                    color: AppTheme.textDisabled(context),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    l10n.history_noWorkouts,
+                                    style: TextStyle(
+                                      color: AppTheme.textSecondary(context),
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Complete your first workout to see it here',
+                                    style: TextStyle(
+                                      color: AppTheme.textTertiary(context),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : _buildWeeklyList(context),
+              ),
             ),
         ],
       ),
@@ -117,6 +134,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final weeks = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       itemCount: weeks.length,
       itemBuilder: (context, index) {
@@ -132,6 +150,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _showSessionDetail(BuildContext context, WorkoutSession session) {
+    final l10n = AppLocalizations.of(context);
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
@@ -176,7 +195,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        session.focus,
+                        ExerciseLocalizer.focusName(l10n, session.focus),
                         style: Theme.of(context)
                             .textTheme
                             .titleMedium
@@ -184,7 +203,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Week ${session.weekNumber} \u2022 Day ${session.dayNumber}',
+                        '${l10n.history_week} ${session.weekNumber} \u2022 ${l10n.history_day} ${session.dayNumber}',
                         style: TextStyle(
                           color: AppTheme.textTertiary(context),
                           fontSize: 13,
@@ -205,7 +224,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             _detailRow(
               context,
               Icons.fitness_center,
-              '${session.exercises.length} exercises',
+              '${session.exercises.length} ${l10n.history_exercises}',
             ),
             const SizedBox(height: 8),
             _detailRow(
@@ -270,7 +289,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             color: AppTheme.achievementGreen),
                         const SizedBox(width: 4),
                         Text(
-                          def.title,
+                          ExerciseLocalizer.achievementTitle(l10n, def.id),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -286,7 +305,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             if (session.exercises.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(
-                'Exercises',
+                l10n.history_exercises,
                 style: TextStyle(
                   color: AppTheme.textPrimary(context),
                   fontWeight: FontWeight.w600,
@@ -399,6 +418,7 @@ class _WeekCardState extends State<_WeekCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
@@ -421,7 +441,7 @@ class _WeekCardState extends State<_WeekCard> {
               setState(() => _expanded = !_expanded);
             },
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+              padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 12, 14),
               child: Row(
                 children: [
                   Container(
@@ -451,7 +471,7 @@ class _WeekCardState extends State<_WeekCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Week ${widget.week}',
+                          '${l10n.history_week} ${widget.week}',
                           style: TextStyle(
                             color: AppTheme.textPrimary(context),
                             fontWeight: FontWeight.w600,
@@ -505,21 +525,22 @@ class _WeekCardState extends State<_WeekCard> {
         children: List.generate(7, (i) {
           final day = i + 1;
           final session = sessionDays[day];
-          final isRestDay = day > 4;
+          final rest = isRestDay(day);
 
-          if (isRestDay) {
+          if (rest) {
             return _buildRestDayTile(context, day);
           }
           if (session != null) {
             return _buildSessionTile(context, session);
           }
-          return _buildEmptyDayTile(context, day);
+          return _buildEmptyDayTile(context, day, widget.week);
         }),
       ),
     );
   }
 
   Widget _buildSessionTile(BuildContext context, WorkoutSession session) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Material(
@@ -559,7 +580,7 @@ class _WeekCardState extends State<_WeekCard> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    session.focus,
+                    ExerciseLocalizer.focusName(l10n, session.focus),
                     style: TextStyle(
                       color: AppTheme.textPrimary(context),
                       fontSize: 14,
@@ -575,8 +596,8 @@ class _WeekCardState extends State<_WeekCard> {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Icon(
-                  Icons.chevron_right,
+                DirectionalIcon(
+                  icon: Icons.chevron_right,
                   size: 18,
                   color: AppTheme.textDisabled(context),
                 ),
@@ -588,7 +609,8 @@ class _WeekCardState extends State<_WeekCard> {
     );
   }
 
-  Widget _buildEmptyDayTile(BuildContext context, int day) {
+  Widget _buildEmptyDayTile(BuildContext context, int day, int week) {
+    final focus = getFocusForDay(week, day);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Container(
@@ -631,11 +653,13 @@ class _WeekCardState extends State<_WeekCard> {
               ),
             ),
             const SizedBox(width: 10),
-            Text(
-              'Not completed',
-              style: TextStyle(
-                color: AppTheme.textDisabled(context),
-                fontSize: 14,
+            Expanded(
+              child: Text(
+                focus,
+                style: TextStyle(
+                  color: AppTheme.textDisabled(context),
+                  fontSize: 14,
+                ),
               ),
             ),
           ],
@@ -645,6 +669,7 @@ class _WeekCardState extends State<_WeekCard> {
   }
 
   Widget _buildRestDayTile(BuildContext context, int day) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Container(
@@ -681,7 +706,7 @@ class _WeekCardState extends State<_WeekCard> {
             ),
             const SizedBox(width: 10),
             Text(
-              'Rest Day',
+              l10n.home_restDay,
               style: TextStyle(
                 color: AppTheme.textTertiary(context),
                 fontSize: 14,

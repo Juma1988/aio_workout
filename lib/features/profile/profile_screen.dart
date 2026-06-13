@@ -2,23 +2,43 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/localization/locale_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/colored_icon_box.dart';
+import '../../core/widgets/directional_icon.dart';
 import '../../core/widgets/progress_ring.dart';
 import '../../core/widgets/staggered_section.dart';
-import '../../core/widgets/top_action.dart';
 import '../../data/workout_log.dart';
-import '../../services/workout_storage_service.dart';
+import '../../l10n/app_localizations.dart';
+import '../../services/workout_storage_service.dart' show WorkoutStorageService, dateKey;
+import '../achievements/models/achievement_category.dart';
+import '../achievements/providers/achievement_provider.dart';
+import '../achievements/widgets/achievement_preview_card.dart';
 import '../dialogs/achivment_dialog.dart';
 import '../dialogs/edit_profile_dialog.dart';
 import '../dialogs/workout_plan_dialog.dart';
 import '../notifications/notification_settings_screen.dart';
+import '../notifications/services/notification_repository.dart';
 import 'exersise_dialog.dart';
+import 'home_settings_dialog.dart';
+import 'changelog_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final VoidCallback? onHomeSettingsChanged;
+  final VoidCallback? onResetSteps;
+  final VoidCallback? onResetHydration;
+  final VoidCallback? onResetWorkout;
+
+  const ProfileScreen({
+    super.key,
+    this.onHomeSettingsChanged,
+    this.onResetSteps,
+    this.onResetHydration,
+    this.onResetWorkout,
+  });
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -40,9 +60,10 @@ class _ProfileScreenState extends State<ProfileScreen>
   // Stats data
   int _workoutCount = 0;
   int _dayStreak = 0;
-  int _totalMinutes = 0;
-  int _achievementCount = 0;
-  String _latestAchievement = '';
+
+  // Language & Units
+  bool _isEnglish = true;
+  bool _useMetric = true;
 
   String get _initials {
     final parts = _name.split(' ');
@@ -68,41 +89,40 @@ class _ProfileScreenState extends State<ProfileScreen>
     setState(() {
       _name = prefs.getString('profile_name') ?? 'Alex Rivera';
       _email = prefs.getString('profile_email') ?? 'alex@workout.dev';
-      _avatarPath = prefs.getString('profile_avatar_path');
+      final avatarPath = prefs.getString('profile_avatar_path');
+      _avatarPath = (avatarPath != null && File(avatarPath).existsSync()) ? avatarPath : null;
       _age = prefs.getInt('profile_age') ?? 28;
       _goal = prefs.getString('profile_goal') ?? 'general_fitness';
       _restTimerSeconds = prefs.getInt('rest_timer_seconds') ?? 30;
     });
 
     await _loadStats(prefs);
+
+    final notifRepo = NotificationRepository();
+    final lang = await notifRepo.languageCode;
+    final isMetric = await notifRepo.isMetric;
+    if (mounted) {
+      setState(() {
+        _isEnglish = lang != 'ar';
+        _useMetric = isMetric;
+      });
+    }
   }
 
   Future<void> _loadStats(SharedPreferences prefs) async {
     final sessions = await WorkoutStorageService().loadSessions();
 
     final uniqueDays = <String>{};
-    int totalSecs = 0;
     for (final s in sessions) {
-      uniqueDays.add(s.date.toIso8601String().substring(0, 10));
-      for (final e in s.exercises) {
-        totalSecs += e.setsCompleted;
-      }
+      uniqueDays.add(dateKey(s.date));
     }
 
     final streak = _calculateStreak(sessions);
-    final unlockedAchievements = evaluateAchievements(sessions);
-    final unlocked = unlockedAchievements.length;
-    final latest = unlockedAchievements.isNotEmpty
-        ? unlockedAchievements.last
-        : null;
 
     if (!mounted) return;
     setState(() {
       _workoutCount = uniqueDays.length;
       _dayStreak = streak;
-      _totalMinutes = (totalSecs / 60).round();
-      _achievementCount = unlocked;
-      _latestAchievement = latest?.title ?? '';
       _restTimerSeconds = prefs.getInt('rest_timer_seconds') ?? 30;
     });
   }
@@ -176,19 +196,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                 reduceMotion: _reduceMotion,
                 child: _buildIdentity(context),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               buildStaggeredSection(
                 controller: _entranceController,
                 index: 2,
                 reduceMotion: _reduceMotion,
-                child: _buildStats(context),
+                child: _buildAchievementsPreview(context),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               buildStaggeredSection(
                 controller: _entranceController,
                 index: 3,
                 reduceMotion: _reduceMotion,
-                child: _buildAchievementsPreview(context),
+                child: _buildStats(context),
               ),
               const SizedBox(height: 24),
               buildStaggeredSection(
@@ -215,17 +235,12 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Row(
       children: [
         Text(
-          'Profile',
+          AppLocalizations.of(context).profile_title,
           style: TextStyle(
             color: AppTheme.textPrimary(context),
             fontSize: 28,
             fontWeight: FontWeight.w700,
           ),
-        ),
-        const Spacer(),
-        TopAction(
-          icon: Icons.settings_outlined,
-          semanticsLabel: 'Settings',
         ),
       ],
     );
@@ -301,7 +316,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  'Goal: ${_goal.replaceAll('_', ' ').split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' ')}',
+                  AppLocalizations.of(context).profile_goalDisplay(_goal.replaceAll('_', ' ').split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' ')),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppTheme.textTertiary(context),
                       ),
@@ -310,7 +325,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                'Member since June 2025',
+                '${AppLocalizations.of(context).profile_memberSince} June 2025',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppTheme.textTertiary(context),
                     ),
@@ -323,12 +338,11 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildStats(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final workoutProgress =
         _workoutCount > 0 ? (_workoutCount / 50).clamp(0.0, 1.0) : 0.0;
     final streakProgress =
         _dayStreak > 0 ? (_dayStreak / 30).clamp(0.0, 1.0) : 0.0;
-    final timeProgress =
-        _totalMinutes > 0 ? (_totalMinutes / 6000).clamp(0.0, 1.0) : 0.0; // 100h
 
     return Semantics(
       label: 'Your fitness statistics',
@@ -338,35 +352,23 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: _buildStatCard(
               context,
               value: '$_workoutCount',
-              label: 'Workouts',
+              label: l10n.profile_workouts,
               icon: Icons.fitness_center,
               color: AppTheme.achievementGreen,
               progress: workoutProgress,
-              goalLabel: '50 goal',
+              goalLabel: '50 ${l10n.profile_goal}',
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
             child: _buildStatCard(
               context,
               value: '$_dayStreak',
-              label: 'Day Streak',
+              label: l10n.profile_dayStreak,
               icon: Icons.local_fire_department,
               color: AppTheme.stepsOrange,
               progress: streakProgress,
-              goalLabel: '30 day',
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildStatCard(
-              context,
-              value: '${_totalMinutes}h',
-              label: 'Total Time',
-              icon: Icons.timer_outlined,
-              color: AppTheme.hydrationBlue,
-              progress: timeProgress,
-              goalLabel: '100h goal',
+              goalLabel: '30 ${l10n.profile_day}',
             ),
           ),
         ],
@@ -400,23 +402,23 @@ class _ProfileScreenState extends State<ProfileScreen>
             side: BorderSide(color: color.withValues(alpha: 0.25), width: 1),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             child: Column(
               children: [
                 Row(
                   children: [
-                    ColoredIconBox(icon: icon, color: color, size: 36),
+                    ColoredIconBox(icon: icon, color: color, size: 28),
                     const Spacer(),
                     ProgressRing(
                       progress: progress,
                       centerLabel: '${(progress * 100).round()}%',
                       bottomLabel: goalLabel.split(' ').first,
                       color: color,
-                      size: 44,
+                      size: 32,
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 4),
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.0, end: numericValue),
                   duration: AppTheme.kAnimMedium,
@@ -426,9 +428,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                       '${animatedValue.toInt()}$suffix',
                       style: TextStyle(
                         color: AppTheme.textPrimary(context),
-                        fontSize: 24,
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        height: 1.2,
+                        height: 1.0,
                       ),
                     );
                   },
@@ -437,7 +439,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   label,
                   style: TextStyle(
                     color: AppTheme.textTertiary(context),
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
                 ),
               ],
@@ -449,119 +451,41 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildAchievementsPreview(BuildContext context) {
-    final green = AppTheme.achievementGreen;
+    final l10n = AppLocalizations.of(context);
+    final provider = context.watch<AchievementProvider>();
+    final cats = {
+      for (final cat in AchievementCategory.values)
+        cat.label: provider.unlockedFor(cat),
+    };
 
-    return Semantics(
-      label: 'Achievements: $_achievementCount of 12 unlocked. Latest: $_latestAchievement',
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: green.withValues(alpha: 0.25), width: 1),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            HapticFeedback.lightImpact();
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const AchievementsDialog(),
-              ),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: green.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(Icons.emoji_events, color: green, size: 26),
-                    ),
-                    Positioned(
-                      top: -2,
-                      right: -2,
-                      child: Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          color: AppTheme.stepsOrange,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppTheme.cardColor(context),
-                            width: 2,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$_achievementCount',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Achievements',
-                        style: TextStyle(
-                          color: green,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$_achievementCount / 12 unlocked',
-                        style: TextStyle(
-                          color: AppTheme.textPrimary(context),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        _latestAchievement.isNotEmpty
-                            ? 'Latest: $_latestAchievement'
-                            : 'Complete workouts to earn achievements',
-                        style: TextStyle(
-                          color: AppTheme.textTertiary(context),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right,
-                  color: AppTheme.textDisabled(context),
-                ),
-              ],
-            ),
+    return AchievementPreviewCard(
+      count: provider.unlockedCount,
+      totalCount: provider.totalCount,
+      latestAchievement: provider.results
+          .where((r) => r.isUnlocked)
+          .toList()
+          .lastOrNull
+          ?.definition
+          .localizedTitle(l10n),
+      closest: provider.closestToUnlock,
+      categoryState: cats,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const AchievementsDialog(),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _buildSettings(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader(context, Icons.manage_accounts_outlined, 'Account'),
+        _buildSectionHeader(context, Icons.manage_accounts_outlined, l10n.profile_account),
         const SizedBox(height: 8),
         Card(
           shape: RoundedRectangleBorder(
@@ -577,16 +501,16 @@ class _ProfileScreenState extends State<ProfileScreen>
               _buildSettingsTile(
                 context,
                 icon: Icons.edit_outlined,
-                title: 'Edit Profile',
+                title: l10n.profile_editProfile,
                 color: Theme.of(context).colorScheme.primary,
-                subtitle: '$_name · $_age yrs',
+                subtitle: l10n.profile_ageYrs(_name, _age),
                 onTap: () => _openEditProfile(),
               ),
               _divider(context),
               _buildSettingsTile(
                 context,
                 icon: Icons.fitness_center_outlined,
-                title: 'Exercise Library',
+                title: l10n.profile_exerciseLibrary,
                 color: AppTheme.achievementGreen,
                 onTap: () {
                   HapticFeedback.lightImpact();
@@ -599,7 +523,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               _buildSettingsTile(
                 context,
                 icon: Icons.route_outlined,
-                title: 'Workout Plan',
+                title: l10n.profile_workoutPlan,
                 color: AppTheme.hydrationBlue,
                 onTap: () {
                   HapticFeedback.lightImpact();
@@ -613,7 +537,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
         ),
         const SizedBox(height: 20),
-        _buildSectionHeader(context, Icons.tune, 'Preferences'),
+        _buildSectionHeader(context, Icons.tune, l10n.profile_preferences),
         const SizedBox(height: 8),
         Card(
           shape: RoundedRectangleBorder(
@@ -629,7 +553,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               _buildSettingsTile(
                 context,
                 icon: Icons.notifications_outlined,
-                title: 'Notifications',
+                title: l10n.profile_notifications,
                 color: AppTheme.stepsOrange,
                 onTap: () {
                   HapticFeedback.lightImpact();
@@ -645,10 +569,9 @@ class _ProfileScreenState extends State<ProfileScreen>
               _buildSettingsTile(
                 context,
                 icon: Icons.palette_outlined,
-                title: 'Appearance',
-                color: AppTheme.hydrationBlue,
-                isSoon: true,
-                onTap: () => _showComingSoon(context, 'Appearance'),
+                title: l10n.profile_appearance,
+                color: Theme.of(context).colorScheme.primary,
+                onTap: () => _showHomeSettingsDialog(context),
               ),
               _divider(context),
               _buildRestTimerTile(context),
@@ -656,7 +579,82 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
         ),
         const SizedBox(height: 20),
-        _buildSectionHeader(context, Icons.support_outlined, 'Support'),
+        _buildSectionHeader(context, Icons.language_outlined, l10n.profile_languageUnits),
+        const SizedBox(height: 8),
+        Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+              width: 1,
+            ),
+          ),
+          elevation: 0,
+          child: Column(
+            children: [
+              SwitchListTile(
+                contentPadding: const EdgeInsets.only(left: 16, right: 16),
+                secondary: ColoredIconBox(
+                  icon: Icons.translate_outlined,
+                  color: AppTheme.textSecondary(context),
+                  size: 36,
+                ),
+                title: Text(
+                  l10n.profile_languageToggle,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary(context),
+                    fontSize: 15,
+                  ),
+                ),
+                subtitle: Text(
+                  _isEnglish ? l10n.profile_english : l10n.profile_arabic,
+                  style: TextStyle(
+                    color: AppTheme.textTertiary(context),
+                    fontSize: 13,
+                  ),
+                ),
+                value: _isEnglish,
+                onChanged: (v) async {
+                  final code = v ? 'en' : 'ar';
+                  final localeProvider = context.read<LocaleProvider>();
+                  await localeProvider.setLanguageCode(code);
+                  if (mounted) setState(() => _isEnglish = v);
+                },
+              ),
+              _divider(context),
+              SwitchListTile(
+                contentPadding: const EdgeInsets.only(left: 16, right: 16),
+                secondary: ColoredIconBox(
+                  icon: Icons.straighten_outlined,
+                  color: AppTheme.textSecondary(context),
+                  size: 36,
+                ),
+                title: Text(
+                  l10n.profile_metricImperial,
+                  style: TextStyle(
+                    color: AppTheme.textPrimary(context),
+                    fontSize: 15,
+                  ),
+                ),
+                subtitle: Text(
+                  _useMetric ? l10n.profile_metric : l10n.profile_imperial,
+                  style: TextStyle(
+                    color: AppTheme.textTertiary(context),
+                    fontSize: 13,
+                  ),
+                ),
+                value: _useMetric,
+                onChanged: (v) async {
+                  final repo = NotificationRepository();
+                  await repo.setMetric(v);
+                  if (mounted) setState(() => _useMetric = v);
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildSectionHeader(context, Icons.support_outlined, l10n.profile_support),
         const SizedBox(height: 8),
         Card(
           shape: RoundedRectangleBorder(
@@ -672,18 +670,26 @@ class _ProfileScreenState extends State<ProfileScreen>
               _buildSettingsTile(
                 context,
                 icon: Icons.restart_alt_outlined,
-                title: 'Reset',
+                title: l10n.profile_reset,
                 color: colorSchemeOrDefault(context).error,
                 onTap: () => _showResetDialog(context),
               ),
               _divider(context),
               _buildSettingsTile(
                 context,
+                icon: Icons.update_rounded,
+                title: l10n.profile_logUpdates,
+                color: AppTheme.achievementGreen,
+                onTap: () => showChangelogDialog(context),
+              ),
+              _divider(context),
+              _buildSettingsTile(
+                context,
                 icon: Icons.help_outline,
-                title: 'Help & Feedback',
+                title: l10n.profile_help,
                 color: Theme.of(context).colorScheme.primary,
                 isSoon: true,
-                onTap: () => _showComingSoon(context, 'Help'),
+                onTap: () => _showComingSoon(context, l10n.profile_help),
               ),
             ],
           ),
@@ -700,7 +706,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return _buildSettingsTile(
       context,
       icon: Icons.timer_outlined,
-      title: 'Rest Timer',
+      title: AppLocalizations.of(context).profile_restTimer,
       color: AppTheme.hydrationBlue,
       subtitle: '${_restTimerSeconds}s',
       onTap: () => _showRestTimerDialog(context),
@@ -708,6 +714,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   void _showRestTimerDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     HapticFeedback.lightImpact();
     const options = [15, 30, 45, 60, 90];
 
@@ -739,7 +746,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Rest Timer',
+                  l10n.profile_restTimer,
                   style: Theme.of(context)
                       .textTheme
                       .titleLarge
@@ -747,7 +754,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Time between exercise sets',
+                  l10n.profile_restTimerDesc,
                   style: TextStyle(
                     color: AppTheme.textTertiary(context),
                     fontSize: 14,
@@ -755,6 +762,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 const SizedBox(height: 24),
                 SegmentedButton<int>(
+                  showSelectedIcon: false,
                   segments: options.map((sec) {
                     return ButtonSegment(
                       value: sec,
@@ -785,7 +793,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text('Done'),
+                    child: Text(l10n.profile_done),
                   ),
                 ),
               ],
@@ -796,9 +804,17 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  void _showHomeSettingsDialog(BuildContext context) {
+    HapticFeedback.lightImpact();
+    showHomeSettingsDialog(
+      context,
+      onSettingsChanged: widget.onHomeSettingsChanged,
+    );
+  }
+
   Widget _buildSectionHeader(BuildContext context, IconData icon, String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 4),
+      padding: const EdgeInsetsDirectional.only(start: 4, bottom: 4),
       child: Row(
         children: [
           Icon(icon, size: 18, color: AppTheme.textSecondary(context)),
@@ -823,6 +839,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     String? subtitle,
     required VoidCallback onTap,
   }) {
+    final l10n = AppLocalizations.of(context);
     return ListTile(
       leading: ColoredIconBox(icon: icon, color: color, size: 36),
       title: Row(
@@ -837,7 +854,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
-                'Soon',
+                l10n.profile_soon,
                 style: TextStyle(
                   fontSize: 11,
                   color: AppTheme.textTertiary(context),
@@ -860,7 +877,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             )
           : null,
-      trailing: Icon(Icons.chevron_right, color: AppTheme.textTertiary(context)),
+      trailing: DirectionalIcon(icon: Icons.chevron_right, size: 20, color: AppTheme.textTertiary(context)),
       onTap: onTap,
     );
   }
@@ -870,6 +887,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildFooter(BuildContext context, ColorScheme colorScheme) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       children: [
         Semantics(
@@ -881,7 +899,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               onPressed: () => _showSignOutDialog(context),
               icon: Icon(Icons.logout, color: colorScheme.error),
               label: Text(
-                'Sign Out',
+                l10n.profile_signOut,
                 style: TextStyle(color: colorScheme.error),
               ),
               style: OutlinedButton.styleFrom(
@@ -910,14 +928,11 @@ class _ProfileScreenState extends State<ProfileScreen>
       MaterialPageRoute(
         builder: (_) => const EditProfileDialog(),
       ),
-    ).then((result) {
-      if (result == true) {
-        _loadAll();
-      }
-    });
+    ).then((_) => _loadAll());
   }
 
   void _showComingSoon(BuildContext context, String feature) {
+    final l10n = AppLocalizations.of(context);
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
@@ -953,7 +968,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Coming soon!',
+              l10n.profile_comingSoon,
               style: TextStyle(color: AppTheme.textSecondary(context)),
             ),
           ],
@@ -963,6 +978,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   void _showResetDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     HapticFeedback.lightImpact();
     bool resetWorkout = false;
     bool resetWater = false;
@@ -984,14 +1000,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                     color: Theme.of(context).colorScheme.error,
                   ),
                   const SizedBox(width: 10),
-                  const Text('Reset Progress'),
+                  Text(l10n.profile_resetTitle),
                 ],
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Select what to reset:',
+                    l10n.profile_resetSelect,
                     style: TextStyle(
                       color: AppTheme.textSecondary(context),
                     ),
@@ -1000,7 +1016,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   _buildResetCheckbox(
                     context,
                     icon: Icons.fitness_center_outlined,
-                    label: 'Daily workout progress',
+                    label: l10n.profile_resetWorkout,
                     value: resetWorkout,
                     onChanged: (v) => setDialogState(() => resetWorkout = v ?? false),
                   ),
@@ -1008,7 +1024,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   _buildResetCheckbox(
                     context,
                     icon: Icons.water_drop_outlined,
-                    label: 'Water drank',
+                    label: l10n.profile_resetWater,
                     value: resetWater,
                     onChanged: (v) => setDialogState(() => resetWater = v ?? false),
                   ),
@@ -1016,9 +1032,34 @@ class _ProfileScreenState extends State<ProfileScreen>
                   _buildResetCheckbox(
                     context,
                     icon: Icons.directions_run,
-                    label: 'Steps count',
+                    label: l10n.profile_resetSteps,
                     value: resetSteps,
                     onChanged: (v) => setDialogState(() => resetSteps = v ?? false),
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        HapticFeedback.heavyImpact();
+                        Navigator.of(ctx).pop();
+                        _confirmResetAll(context);
+                      },
+                      icon: const Icon(Icons.delete_forever_outlined),
+                      label: Text(l10n.profile_resetAllData),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error,
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.error.withValues(alpha: 0.4),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -1026,7 +1067,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(),
                   child: Text(
-                    'Cancel',
+                    l10n.profile_resetCancel,
                     style: TextStyle(color: AppTheme.textSecondary(context)),
                   ),
                 ),
@@ -1036,14 +1077,18 @@ class _ProfileScreenState extends State<ProfileScreen>
                           HapticFeedback.mediumImpact();
                           Navigator.of(ctx).pop();
 
+                          if (resetSteps) widget.onResetSteps?.call();
+                          if (resetWater) widget.onResetHydration?.call();
+                          if (resetWorkout) widget.onResetWorkout?.call();
+
                           final items = <String>[];
-                          if (resetWorkout) items.add('workout progress');
-                          if (resetWater) items.add('water intake');
-                          if (resetSteps) items.add('steps count');
+                          if (resetWorkout) items.add(l10n.profile_resetWorkout);
+                          if (resetWater) items.add(l10n.profile_resetWater);
+                          if (resetSteps) items.add(l10n.profile_resetSteps);
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Reset: ${items.join(', ')}'),
+                              content: Text(l10n.profile_resetSnackbar(items.join(', '))),
                               behavior: SnackBarBehavior.floating,
                               duration: const Duration(seconds: 2),
                             ),
@@ -1056,13 +1101,70 @@ class _ProfileScreenState extends State<ProfileScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Reset'),
+                  child: Text(l10n.profile_resetConfirm),
                 ),
               ],
             );
           },
         );
       },
+    );
+  }
+
+  void _confirmResetAll(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    HapticFeedback.lightImpact();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning_rounded, color: Theme.of(context).colorScheme.error),
+            const SizedBox(width: 10),
+            Text(l10n.profile_resetAllTitle),
+          ],
+        ),
+        content: Text(
+          l10n.profile_resetAllBody,
+          style: TextStyle(color: AppTheme.textSecondary(context)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(
+              l10n.profile_resetCancel,
+              style: TextStyle(color: AppTheme.textSecondary(context)),
+            ),
+          ),
+          FilledButton(
+            onPressed: () async {
+              HapticFeedback.heavyImpact();
+              Navigator.of(ctx).pop();
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.clear();
+              if (!context.mounted) return;
+              setState(() => _loadAll());
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.profile_resetAllSnackbar),
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(l10n.profile_resetAllConfirm),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1110,6 +1212,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   void _showSignOutDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     HapticFeedback.lightImpact();
     showDialog(
       context: context,
@@ -1117,16 +1220,16 @@ class _ProfileScreenState extends State<ProfileScreen>
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        title: const Text('Sign Out'),
+        title: Text(l10n.profile_signOutTitle),
         content: Text(
-          'Are you sure you want to sign out?',
+          l10n.profile_signOutBody,
           style: TextStyle(color: AppTheme.textSecondary(context)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
-              'Cancel',
+              l10n.profile_resetCancel,
               style: TextStyle(color: AppTheme.textSecondary(context)),
             ),
           ),
@@ -1136,7 +1239,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               Navigator.of(ctx).pop();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text('Signed out successfully'),
+                  content: Text(l10n.profile_signOutSuccess),
                   behavior: SnackBarBehavior.floating,
                   duration: const Duration(seconds: 2),
                 ),
@@ -1148,7 +1251,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Sign Out'),
+            child: Text(l10n.profile_signOut),
           ),
         ],
       ),

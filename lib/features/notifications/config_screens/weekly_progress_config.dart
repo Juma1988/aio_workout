@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../l10n/app_localizations.dart';
 import '../services/notification_repository.dart';
 import '../services/notification_service.dart';
-import '../services/notification_strings.dart';
 
 class WeeklyProgressConfigScreen extends StatefulWidget {
   const WeeklyProgressConfigScreen({super.key});
@@ -62,15 +62,16 @@ class _WeeklyProgressConfigScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(NotificationStrings.weeklyProgressConfigTitle),
+        title: Text(l10n.notif_weeklyProgress),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,7 +93,7 @@ class _WeeklyProgressConfigScreenState
             ),
             const SizedBox(height: 24),
             Text(
-              NotificationStrings.weeklyProgressConfigTitle,
+              l10n.notif_weeklyProgress,
               style: TextStyle(
                 color: AppTheme.textPrimary(context),
                 fontSize: 20,
@@ -101,7 +102,7 @@ class _WeeklyProgressConfigScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              NotificationStrings.weeklyProgressConfigHeader,
+              l10n.notif_weeklyProgressConfigHeader,
               style: TextStyle(
                 color: AppTheme.textSecondary(context),
                 fontSize: 14,
@@ -279,7 +280,7 @@ class _WeeklyProgressConfigScreenState
               ),
             ),
 
-            const Spacer(),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
@@ -291,7 +292,7 @@ class _WeeklyProgressConfigScreenState
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: Text(
-                  NotificationStrings.done,
+                  l10n.notif_done,
                   style: const TextStyle(fontSize: 16),
                 ),
               ),

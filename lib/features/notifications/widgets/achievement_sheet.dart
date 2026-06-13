@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
-import '../services/notification_strings.dart';
+import '../../../l10n/app_localizations.dart';
 
 class AchievementSheet extends StatefulWidget {
   final bool initialEnabled;
@@ -28,6 +28,7 @@ class _AchievementSheetState extends State<AchievementSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
       child: Column(
@@ -50,10 +51,10 @@ class _AchievementSheetState extends State<AchievementSheet> {
             child: const Icon(Icons.emoji_events_outlined, size: 28, color: AppTheme.achievementGreen),
           ),
           const SizedBox(height: 16),
-          Text(NotificationStrings.achievementTitle,
+          Text(l10n.notif_achievementNotif,
             style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text(NotificationStrings.achievementSubtitle,
+          Text(l10n.notif_achievementNotifSub,
             textAlign: TextAlign.center,
             style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 13)),
           const SizedBox(height: 24),
@@ -79,7 +80,7 @@ class _AchievementSheetState extends State<AchievementSheet> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: Text(NotificationStrings.done),
+              child: Text(l10n.notif_done),
             ),
           ),
         ],

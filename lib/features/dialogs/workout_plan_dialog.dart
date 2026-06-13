@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../data/exercise_localizer.dart';
 import '../../data/workout_log.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/workout_storage_service.dart';
 
 class WorkoutPlanDialog extends StatefulWidget {
@@ -37,9 +39,10 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Workout Plan'),
+        title: Text(l10n.dialog_workoutPlanTitle),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
@@ -52,13 +55,14 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
   }
 
   Widget _buildBody(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
         _buildProgressCard(context),
         const SizedBox(height: 20),
         Text(
-          '12-Week Program',
+          l10n.dialog_12WeekProgram,
           style: TextStyle(
             color: AppTheme.textPrimary(context),
             fontSize: 17,
@@ -86,7 +90,8 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
   }
 
   Widget _buildProgressCard(BuildContext context) {
-    final phase = _getPhase(_progress.currentWeek);
+    final l10n = AppLocalizations.of(context);
+    final phase = _getPhase(l10n, _progress.currentWeek);
 
     return Card(
       shape: RoundedRectangleBorder(
@@ -124,7 +129,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Week ${_progress.currentWeek} \u2014 Day ${_progress.currentDay}',
+                        l10n.dialog_weekDayDisplay(_progress.currentWeek, _progress.currentDay),
                         style: TextStyle(
                           color: AppTheme.textPrimary(context),
                           fontWeight: FontWeight.w700,
@@ -154,7 +159,7 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
                       ),
                     ),
                     Text(
-                      'workouts',
+                      l10n.dialog_workoutsLabel,
                       style: TextStyle(
                         color: AppTheme.textTertiary(context),
                         fontSize: 12,
@@ -178,15 +183,15 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Week 1',
+                  Text(
+                    l10n.dialog_weekLabel(1),
                   style: TextStyle(
                     color: AppTheme.textTertiary(context),
                     fontSize: 11,
                   ),
                 ),
-                Text(
-                  'Week 12',
+                  Text(
+                    l10n.dialog_weekLabel(12),
                   style: TextStyle(
                     color: AppTheme.textTertiary(context),
                     fontSize: 11,
@@ -200,10 +205,10 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
     );
   }
 
-  String _getPhase(int week) {
-    if (week <= 4) return 'Foundation Phase';
-    if (week <= 8) return 'Building Phase';
-    return 'Peak Phase';
+  String _getPhase(AppLocalizations l10n, int week) {
+    if (week <= 4) return l10n.dialog_foundationPhase;
+    if (week <= 8) return l10n.dialog_buildingPhase;
+    return l10n.dialog_peakPhase;
   }
 }
 
@@ -218,26 +223,20 @@ class _WeekPlanCard extends StatelessWidget {
     this.completedWorkouts = 0,
   });
 
-  static const _dayFocuses = {
-    1: 'Core',
-    2: 'Upper Body',
-    3: 'Lower Body',
-    4: 'Full Body',
-  };
-
-  String _getPhase(int w) {
-    if (w <= 4) return 'Foundation';
-    if (w <= 8) return 'Building';
-    return 'Peak';
+  String _getPhase(AppLocalizations l10n, int w) {
+    if (w <= 4) return l10n.dialog_foundation;
+    if (w <= 8) return l10n.dialog_building;
+    return l10n.dialog_peak;
   }
 
   @override
   Widget build(BuildContext context) {
-    final phase = _getPhase(week);
-    final phaseColors = {
-      'Foundation': AppTheme.achievementGreen,
-      'Building': AppTheme.stepsOrange,
-      'Peak': AppTheme.hydrationBlue,
+    final l10n = AppLocalizations.of(context);
+    final phase = _getPhase(l10n, week);
+    final phaseColors = <String, Color>{
+      l10n.dialog_foundation: AppTheme.achievementGreen,
+      l10n.dialog_building: AppTheme.stepsOrange,
+      l10n.dialog_peak: AppTheme.hydrationBlue,
     };
     final color = phaseColors[phase]!;
 
@@ -281,8 +280,8 @@ class _WeekPlanCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text(
-                  'Week $week',
+                  Text(
+                    l10n.dialog_weekLabel(week),
                   style: TextStyle(
                     color: AppTheme.textPrimary(context),
                     fontWeight: FontWeight.w600,
@@ -299,7 +298,7 @@ class _WeekPlanCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      'Current',
+                      l10n.dialog_current,
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -330,8 +329,8 @@ class _WeekPlanCard extends StatelessWidget {
             const SizedBox(height: 10),
             ...List.generate(7, (i) {
               final day = i + 1;
-              final isRestDay = day > 4;
-              final focus = _dayFocuses[day] ?? '';
+              final rest = isRestDay(day);
+              final focus = getFocusForDay(week, day);
               return Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Row(
@@ -341,7 +340,7 @@ class _WeekPlanCard extends StatelessWidget {
                       height: 24,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: isRestDay
+                        color: rest
                             ? AppTheme.subtleFill(context, 0.04)
                             : AppTheme.subtleFill(context, 0.08),
                         borderRadius: BorderRadius.circular(5),
@@ -351,7 +350,7 @@ class _WeekPlanCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: isRestDay
+                          color: rest
                               ? AppTheme.textDisabled(context)
                               : AppTheme.textSecondary(context),
                         ),
@@ -360,18 +359,18 @@ class _WeekPlanCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        isRestDay ? 'Rest Day' : focus,
+                        ExerciseLocalizer.focusName(l10n, focus),
                         style: TextStyle(
                           fontSize: 13,
-                          color: isRestDay
+                          color: rest
                               ? AppTheme.textDisabled(context)
                               : AppTheme.textPrimary(context),
                           fontStyle:
-                              isRestDay ? FontStyle.italic : FontStyle.normal,
+                              rest ? FontStyle.italic : FontStyle.normal,
                         ),
                       ),
                     ),
-                    if (isRestDay)
+                    if (rest)
                       Icon(
                         Icons.nightlight_round,
                         size: 14,

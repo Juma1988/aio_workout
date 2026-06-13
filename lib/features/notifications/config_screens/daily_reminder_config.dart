@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../l10n/app_localizations.dart';
 import '../services/notification_repository.dart';
 import '../services/notification_service.dart';
-import '../services/notification_strings.dart';
 
 class DailyReminderConfigScreen extends StatefulWidget {
   const DailyReminderConfigScreen({super.key});
@@ -31,13 +31,11 @@ class _DailyReminderConfigScreenState
   }
 
   Future<void> _pickTime() async {
+    final l10n = AppLocalizations.of(context);
     final picked = await showTimePicker(
       context: context,
       initialTime: _reminderTime,
-      helpText: NotificationStrings.get(
-        'Choose reminder time',
-        'اختر وقت التذكير',
-      ),
+      helpText: l10n.notif_dailyReminderConfigBody,
     );
     if (picked != null && mounted) {
       setState(() => _reminderTime = picked);
@@ -48,11 +46,12 @@ class _DailyReminderConfigScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final timeStr = _reminderTime.format(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(NotificationStrings.dailyReminderConfigTitle),
+        title: Text(l10n.notif_dailyReminder),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
@@ -78,7 +77,7 @@ class _DailyReminderConfigScreenState
             ),
             const SizedBox(height: 24),
             Text(
-              NotificationStrings.dailyReminderConfigBody,
+              l10n.notif_dailyReminderConfigBody,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppTheme.textPrimary(context),
@@ -123,7 +122,7 @@ class _DailyReminderConfigScreenState
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      NotificationStrings.tapToChange,
+                      l10n.notif_tapToChange,
                       style: TextStyle(
                         color: AppTheme.textTertiary(context),
                         fontSize: 13,
@@ -157,7 +156,7 @@ class _DailyReminderConfigScreenState
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: Text(
-                  NotificationStrings.done,
+                  l10n.notif_done,
                   style: const TextStyle(fontSize: 16),
                 ),
               ),

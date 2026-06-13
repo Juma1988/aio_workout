@@ -3,7 +3,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'notification_repository.dart';
-import 'notification_strings.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._();
@@ -158,8 +157,8 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       _dailyReminderId,
-      NotificationStrings.dailyReminderTitle,
-      NotificationStrings.dailyReminderNotificationBody,
+      'Daily Workout Reminder',
+      'Ready to crush it \u{1F4AA}',
       tz.TZDateTime.from(scheduledDate, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -194,8 +193,8 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       _missedWorkoutId,
-      NotificationStrings.missedWorkoutTitle,
-      NotificationStrings.missedWorkoutNotificationBody,
+      'Missed Workout Reminder',
+      'You missed your workout today. Time to get back on track!',
       tz.TZDateTime.from(fireTime, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -256,8 +255,8 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       _recoveryId,
-      NotificationStrings.recoveryTitle,
-      NotificationStrings.recoveryNotificationBody,
+      'Recovery Suggestion',
+      'You may benefit from a recovery day.',
       tz.TZDateTime.from(fireTime, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -296,7 +295,7 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       _weeklyProgressId,
-      NotificationStrings.weeklyProgressTitle,
+      'Weekly Progress',
       _buildWeeklySummary(),
       tz.TZDateTime.from(scheduledDate, tz.local),
       const NotificationDetails(
@@ -338,7 +337,7 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       _weightFollowUpId,
-      NotificationStrings.weightFollowUpTitle,
+      'Weight Follow-Up',
       'Time to log your weight!',
       tz.TZDateTime.from(fireTime, tz.local),
       const NotificationDetails(
@@ -367,8 +366,8 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       _restTimerCompleteId,
-      NotificationStrings.restCompleteTitle,
-      NotificationStrings.restCompleteBody,
+      'Rest Complete',
+      'Rest complete. Start next set.',
       tz.TZDateTime.from(fireTime, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -399,8 +398,8 @@ class NotificationService {
 
     await _plugin.show(
       _testNotificationId,
-      NotificationStrings.testNotification,
-      NotificationStrings.testNotificationSent,
+      'Test Notification',
+      'Test Notification sent',
       const NotificationDetails(
         android: AndroidNotificationDetails(
           _testChannel,

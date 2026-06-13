@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
-import '../services/notification_strings.dart';
+import '../../../l10n/app_localizations.dart';
 
 class RecoverySheet extends StatefulWidget {
   final bool initialEnabled;
@@ -28,6 +28,7 @@ class _RecoverySheetState extends State<RecoverySheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
       child: Column(
@@ -50,10 +51,10 @@ class _RecoverySheetState extends State<RecoverySheet> {
             child: const Icon(Icons.spa_outlined, size: 28, color: AppTheme.hydrationBlue),
           ),
           const SizedBox(height: 16),
-          Text(NotificationStrings.recoveryTitle,
+          Text(l10n.notif_recovery,
             style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text(NotificationStrings.recoverySubtitle,
+          Text(l10n.notif_recoverySub,
             textAlign: TextAlign.center,
             style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 13)),
           const SizedBox(height: 24),
@@ -61,7 +62,7 @@ class _RecoverySheetState extends State<RecoverySheet> {
             contentPadding: EdgeInsets.zero,
             title: Text('Enable Recovery Suggestions',
               style: TextStyle(color: AppTheme.textPrimary(context), fontWeight: FontWeight.w600)),
-            subtitle: Text('Get a suggestion to rest after 3 consecutive workout days',
+            subtitle: Text('Get reminded to take rest days after consecutive workouts',
               style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 12)),
             value: _enabled,
             onChanged: (v) => setState(() => _enabled = v),
@@ -79,7 +80,7 @@ class _RecoverySheetState extends State<RecoverySheet> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: Text(NotificationStrings.done),
+              child: Text(l10n.notif_done),
             ),
           ),
         ],

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
-import '../services/notification_strings.dart';
+import '../../../l10n/app_localizations.dart';
 
 class WeeklyProgressSheet extends StatefulWidget {
   final bool initialEnabled;
@@ -52,6 +52,7 @@ class _WeeklyProgressSheetState extends State<WeeklyProgressSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
       child: Column(
@@ -65,30 +66,31 @@ class _WeeklyProgressSheetState extends State<WeeklyProgressSheet> {
             ),
           ),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              const Icon(Icons.trending_up_outlined, size: 22, color: AppTheme.hydrationBlue),
-              const SizedBox(width: 10),
-              Text(NotificationStrings.weeklyProgressConfigTitle,
-                style: TextStyle(
-                  color: AppTheme.textPrimary(context),
-                  fontSize: 18, fontWeight: FontWeight.w700,
-                )),
-            ],
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(
+              color: AppTheme.hydrationBlue.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.calendar_view_week_outlined, size: 28, color: AppTheme.hydrationBlue),
           ),
+          const SizedBox(height: 16),
+          Text(l10n.notif_weeklyProgress,
+            style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text('Choose which day and time you\'d like to receive\nyour weekly progress summary.',
+          Text(l10n.notif_weeklyProgressSub,
+            textAlign: TextAlign.center,
             style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 13)),
           const SizedBox(height: 24),
-
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text('Enable Weekly Progress',
               style: TextStyle(color: AppTheme.textPrimary(context), fontWeight: FontWeight.w600)),
+            subtitle: Text('Get a weekly summary of your stats',
+              style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 12)),
             value: _enabled,
             onChanged: (v) => setState(() => _enabled = v),
           ),
-
           if (_enabled) ...[
             const SizedBox(height: 16),
             InkWell(
@@ -103,12 +105,16 @@ class _WeeklyProgressSheetState extends State<WeeklyProgressSheet> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.access_time, size: 20, color: AppTheme.hydrationBlue),
+                    Icon(Icons.access_time, size: 20, color: AppTheme.hydrationBlue),
                     const SizedBox(width: 12),
-                    Expanded(child: Text('Notification time',
-                      style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 14))),
-                    Text(_selectedTime.format(context),
-                      style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 16, fontWeight: FontWeight.w600)),
+                    Expanded(
+                      child: Text('Notification time',
+                        style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 14)),
+                    ),
+                    Text(
+                      _selectedTime.format(context),
+                      style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(width: 8),
                     Icon(Icons.edit_outlined, size: 16, color: AppTheme.textTertiary(context)),
                   ],
@@ -116,10 +122,13 @@ class _WeeklyProgressSheetState extends State<WeeklyProgressSheet> {
               ),
             ),
             const SizedBox(height: 16),
+            Text('Choose day',
+              style: TextStyle(color: AppTheme.textPrimary(context), fontWeight: FontWeight.w600, fontSize: 15)),
+            const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
                 color: AppTheme.cardColor(context),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppTheme.hydrationBlue.withValues(alpha: 0.15)),
               ),
               child: Column(
@@ -128,28 +137,34 @@ class _WeeklyProgressSheetState extends State<WeeklyProgressSheet> {
                   final selected = dayIndex == _selectedDay;
                   return Column(
                     children: [
-                      if (i > 0) Divider(height: 1, indent: 16, endIndent: 16, color: AppTheme.subtleFill(context)),
+                      if (i > 0)
+                        Divider(height: 1, indent: 16, endIndent: 16, color: AppTheme.subtleFill(context)),
                       InkWell(
                         onTap: () => setState(() => _selectedDay = dayIndex),
                         borderRadius: i == 0
-                            ? const BorderRadius.vertical(top: Radius.circular(12))
+                            ? const BorderRadius.vertical(top: Radius.circular(16))
                             : i == _days.length - 1
-                                ? const BorderRadius.vertical(bottom: Radius.circular(12))
+                                ? const BorderRadius.vertical(bottom: Radius.circular(16))
                                 : null,
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           child: Row(
                             children: [
-                              Expanded(child: Text(_days[i],
-                                style: TextStyle(
-                                  color: selected ? AppTheme.hydrationBlue : AppTheme.textPrimary(context),
-                                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                                  fontSize: 15))),
+                              Expanded(
+                                child: Text(
+                                  _days[i],
+                                  style: TextStyle(
+                                    color: selected ? AppTheme.hydrationBlue : AppTheme.textPrimary(context),
+                                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
                               if (selected)
                                 Container(
-                                  width: 22, height: 22,
+                                  width: 24, height: 24,
                                   decoration: const BoxDecoration(color: AppTheme.hydrationBlue, shape: BoxShape.circle),
-                                  child: const Icon(Icons.check, size: 14, color: Colors.white),
+                                  child: const Icon(Icons.check, size: 16, color: Colors.white),
                                 ),
                             ],
                           ),
@@ -161,7 +176,6 @@ class _WeeklyProgressSheetState extends State<WeeklyProgressSheet> {
               ),
             ),
           ],
-
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -175,7 +189,7 @@ class _WeeklyProgressSheetState extends State<WeeklyProgressSheet> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: Text(NotificationStrings.done),
+              child: Text(l10n.notif_done),
             ),
           ),
         ],

@@ -66,5 +66,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMotionUsageDescription</key>
+	<string>This app uses the motion sensor to count your daily steps for fitness tracking.</string>
 </dict>
 </plist>

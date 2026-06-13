@@ -11,6 +11,7 @@ class AppTheme {
   static const Color achievementGreen = Color(0xFF22C55E);
   static const Color stepsOrange = Color(0xFFF97316);
   static const Color hydrationBlue = Color(0xFF3B82F6);
+  static const Color weightPurple = Color(0xFFA855F7);
 
   // Very dark surfaces to match the reference dark mode
   static const Color darkBackground = Color(0xFF0A0A0C);
@@ -35,6 +36,7 @@ class AppTheme {
   static const Curve kEaseOutBack = Curves.easeOutBack;
 
   static final ThemeData light = ThemeData(
+    fontFamily: 'Tajawal',
     scaffoldBackgroundColor: lightBackground,
     colorScheme:
         ColorScheme.fromSeed(
@@ -52,6 +54,7 @@ class AppTheme {
     cardTheme: const CardThemeData(
       color: lightCard,
       elevation: 0,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
@@ -60,6 +63,7 @@ class AppTheme {
   );
 
   static final ThemeData dark = ThemeData(
+    fontFamily: 'Tajawal',
     scaffoldBackgroundColor: darkBackground,
     colorScheme:
         ColorScheme.fromSeed(
@@ -77,6 +81,7 @@ class AppTheme {
     cardTheme: const CardThemeData(
       color: darkCard,
       elevation: 0,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(16)),
       ),

@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/colored_icon_box.dart';
-import '../services/notification_strings.dart';
+import '../../../core/widgets/directional_icon.dart';
+import '../../../l10n/app_localizations.dart';
 
 class NotificationCard extends StatelessWidget {
   final String title;
@@ -28,15 +29,9 @@ class NotificationCard extends StatelessWidget {
     required this.onOpenSettings,
   });
 
-  String get _title => NotificationStrings.isArabic && titleAr != null
-      ? titleAr!
-      : title;
-  String get _subtitle => NotificationStrings.isArabic && subtitleAr != null
-      ? subtitleAr!
-      : (subtitle ?? '');
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -53,9 +48,7 @@ class NotificationCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Semantics(
         button: true,
-        hint: NotificationStrings.isArabic
-            ? 'اضغط لفتح الإعدادات'
-            : 'Tap to open settings',
+        hint: l10n.notif_tapToChange,
         child: GestureDetector(
           onTap: () {
             HapticFeedback.lightImpact();
@@ -83,18 +76,18 @@ class NotificationCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        _title,
+                        title,
                         style: TextStyle(
                           color: AppTheme.textPrimary(context),
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (_subtitle.isNotEmpty)
+                      if ((subtitle ?? '').isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Text(
-                            _subtitle,
+                            subtitle ?? '',
                             style: TextStyle(
                               color: AppTheme.textTertiary(context),
                               fontSize: 13,
@@ -113,7 +106,7 @@ class NotificationCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      NotificationStrings.on_,
+                      l10n.notif_on,
                       style: TextStyle(
                         fontSize: 11,
                         color: AppTheme.achievementGreen,
@@ -123,8 +116,8 @@ class NotificationCard extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(width: 4),
-                Icon(
-                  Icons.chevron_right,
+                DirectionalIcon(
+                  icon: Icons.chevron_right,
                   color: AppTheme.textTertiary(context),
                   size: 20,
                 ),

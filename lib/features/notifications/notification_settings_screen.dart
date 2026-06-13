@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/colored_icon_box.dart';
+import '../../core/widgets/directional_icon.dart';
+import '../../l10n/app_localizations.dart';
 import 'services/notification_repository.dart';
 import 'services/notification_service.dart';
-import 'services/notification_strings.dart';
+import 'widgets/achievement_sheet.dart';
+import 'widgets/daily_reminder_sheet.dart';
+import 'widgets/missed_workout_sheet.dart';
 import 'widgets/notification_card.dart';
 import 'widgets/quiet_hours_sheet.dart';
-import 'config_screens/daily_reminder_config.dart';
-import 'config_screens/missed_workout_config.dart';
+import 'widgets/recovery_sheet.dart';
 import 'config_screens/weekly_progress_config.dart';
 import 'config_screens/weight_followup_config.dart';
 
@@ -35,8 +38,6 @@ class _NotificationSettingsScreenState
   bool _weightFollowUp = false;
   bool _quietHoursEnabled = false;
   DateTime? _pauseUntil;
-  bool _languageIsArabic = false;
-  bool _useMetric = true;
 
   @override
   void initState() {
@@ -57,10 +58,6 @@ class _NotificationSettingsScreenState
       _weightFollowUp = data['weightFollowUp'] as bool;
       _quietHoursEnabled = data['quietHoursEnabled'] as bool;
       _pauseUntil = data['pauseUntil'] as DateTime?;
-      final lang = data['language'] as String;
-      NotificationStrings.setOverride(lang);
-      _languageIsArabic = lang == 'ar';
-      _useMetric = data['isMetric'] as bool;
     });
   }
 
@@ -73,6 +70,97 @@ class _NotificationSettingsScreenState
     } else {
       unawaited(_service.cancelAll());
     }
+  }
+
+  void _showDailyReminderSheet() {
+    HapticFeedback.lightImpact();
+    _repo.dailyReminderTime.then((time) {
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => DailyReminderSheet(
+          initialEnabled: _dailyReminder,
+          initialTime: time,
+          onSave: (enabled, t) async {
+            await _repo.setDailyReminderEnabled(enabled);
+            await _repo.setDailyReminderTime(t);
+            if (mounted) {
+              setState(() => _dailyReminder = enabled);
+            }
+            unawaited(_service.scheduleDailyReminder());
+          },
+        ),
+      );
+    });
+  }
+
+  void _showMissedWorkoutSheet() {
+    HapticFeedback.lightImpact();
+    _repo.missedWorkoutDelayHours.then((delay) {
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => MissedWorkoutSheet(
+          initialEnabled: _missedWorkout,
+          initialDelayHours: delay,
+          onSave: (enabled, d) async {
+            await _repo.setMissedWorkoutEnabled(enabled);
+            await _repo.setMissedWorkoutDelayHours(d);
+            if (mounted) {
+              setState(() => _missedWorkout = enabled);
+            }
+            unawaited(_service.scheduleMissedWorkoutReminder());
+          },
+        ),
+      );
+    });
+  }
+
+  void _showAchievementSheet() {
+    HapticFeedback.lightImpact();
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => AchievementSheet(
+        initialEnabled: _achievement,
+        onSave: (enabled) async {
+          await _repo.setAchievementEnabled(enabled);
+          if (mounted) {
+            setState(() => _achievement = enabled);
+          }
+        },
+      ),
+    );
+  }
+
+  void _showRecoverySheet() {
+    HapticFeedback.lightImpact();
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => RecoverySheet(
+        initialEnabled: _recovery,
+        onSave: (enabled) async {
+          await _repo.setRecoveryEnabled(enabled);
+          if (mounted) {
+            setState(() => _recovery = enabled);
+          }
+          unawaited(_service.scheduleRecoverySuggestion());
+        },
+      ),
+    );
   }
 
   void _openConfig(Widget screen) {
@@ -125,17 +213,18 @@ class _NotificationSettingsScreenState
   }
 
   String? _pauseRemaining() {
+    final l10n = AppLocalizations.of(context);
     if (_pauseUntil == null) return null;
     final remaining = _pauseUntil!.difference(DateTime.now());
     if (remaining.isNegative) return null;
     final hours = remaining.inHours;
     final minutes = remaining.inMinutes % 60;
-    return '${hours}h ${minutes}m ${NotificationStrings.remaining}';
+    return '${hours}h ${minutes}m ${l10n.notif_remaining}';
   }
 
   Widget _sectionHeader(IconData icon, String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 4),
+      padding: const EdgeInsetsDirectional.only(start: 4, bottom: 4),
       child: Row(
         children: [
           Icon(icon, size: 18, color: AppTheme.textSecondary(context)),
@@ -162,13 +251,14 @@ class _NotificationSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final isPaused =
         _pauseUntil != null && DateTime.now().isBefore(_pauseUntil!);
     final effectiveEnabled = _masterEnabled && !isPaused;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(NotificationStrings.notifications),
+        title: Text(l10n.notif_title),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
@@ -199,7 +289,7 @@ class _NotificationSettingsScreenState
                     size: 40,
                   ),
                   title: Text(
-                    NotificationStrings.notifications,
+                    l10n.notif_title,
                     style: TextStyle(
                       color: AppTheme.textPrimary(context),
                       fontWeight: FontWeight.w600,
@@ -208,8 +298,8 @@ class _NotificationSettingsScreenState
                   ),
                   subtitle: Text(
                     _masterEnabled
-                        ? NotificationStrings.on_
-                        : NotificationStrings.off,
+                        ? l10n.notif_on
+                        : l10n.notif_off,
                     style: TextStyle(
                       color: _masterEnabled
                           ? AppTheme.achievementGreen
@@ -231,7 +321,7 @@ class _NotificationSettingsScreenState
                       size: 36,
                     ),
                     title: Text(
-                      NotificationStrings.pauseNotifications,
+                      l10n.notif_pause,
                       style: TextStyle(
                         color: AppTheme.stepsOrange,
                         fontWeight: FontWeight.w600,
@@ -247,74 +337,19 @@ class _NotificationSettingsScreenState
                     ),
                     trailing: TextButton(
                       onPressed: _togglePause,
-                      child: Text(NotificationStrings.resumeNotifications),
+                      child: Text(l10n.notif_resume),
                     ),
                   ),
                 ],
               ],
             ),
           ),
-          const SizedBox(height: 8),
-
-          // ── Test + Pause buttons ──
-          Wrap(
-            spacing: 8,
-            children: [
-              OutlinedButton.icon(
-                onPressed: _masterEnabled
-                    ? () {
-                        HapticFeedback.lightImpact();
-                        final messenger = ScaffoldMessenger.of(context);
-                        _service.sendTestNotification().then((_) {
-                          if (mounted) {
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  NotificationStrings.testNotificationSent,
-                                ),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        });
-                      }
-                    : null,
-                icon: const Icon(Icons.send_outlined, size: 16),
-                label: Text(NotificationStrings.testNotification),
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              OutlinedButton.icon(
-                onPressed: _togglePause,
-                icon: Icon(
-                  isPaused
-                      ? Icons.play_arrow_outlined
-                      : Icons.pause_outlined,
-                  size: 16,
-                ),
-                label: Text(
-                  isPaused
-                      ? NotificationStrings.resumeNotifications
-                      : NotificationStrings.pauseNotifications,
-                ),
-                style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
           const SizedBox(height: 24),
 
           // ── Workout Reminders ──
           _sectionHeader(
             Icons.notifications_active_outlined,
-            NotificationStrings.workoutReminders,
+            l10n.notif_workoutReminders,
           ),
           const SizedBox(height: 8),
           Card(
@@ -334,69 +369,48 @@ class _NotificationSettingsScreenState
                 Opacity(
                   opacity: effectiveEnabled ? 1 : 0.4,
                   child: NotificationCard(
-                    title: NotificationStrings.dailyReminderTitle,
-                    subtitle: NotificationStrings.dailyReminderSubtitle,
+                    title: l10n.notif_dailyReminder,
+                    subtitle: l10n.notif_dailyReminderSub,
                     icon: Icons.alarm_outlined,
                     iconColor: AppTheme.stepsOrange,
                     isEnabled: effectiveEnabled && _dailyReminder,
-                    onOpenSettings: () =>
-                        _openConfig(const DailyReminderConfigScreen()),
+                    onOpenSettings: _showDailyReminderSheet,
                   ),
                 ),
                 _divider(),
                 Opacity(
                   opacity: effectiveEnabled ? 1 : 0.4,
                   child: NotificationCard(
-                    title: NotificationStrings.missedWorkoutTitle,
-                    subtitle: NotificationStrings.missedWorkoutSubtitle,
+                    title: l10n.notif_missedWorkout,
+                    subtitle: l10n.notif_missedWorkoutSub,
                     icon: Icons.fitness_center_outlined,
                     iconColor: AppTheme.achievementGreen,
                     isEnabled: effectiveEnabled && _missedWorkout,
-                    onOpenSettings: () =>
-                        _openConfig(const MissedWorkoutConfigScreen()),
+                    onOpenSettings: _showMissedWorkoutSheet,
                   ),
                 ),
                 _divider(),
                 Opacity(
                   opacity: effectiveEnabled ? 1 : 0.4,
                   child: NotificationCard(
-                    title: NotificationStrings.achievementTitle,
-                    subtitle: NotificationStrings.achievementSubtitle,
+                    title: l10n.notif_achievementNotif,
+                    subtitle: l10n.notif_achievementNotifSub,
                     icon: Icons.emoji_events_outlined,
                     iconColor: AppTheme.achievementGreen,
                     isEnabled: effectiveEnabled && _achievement,
-                    onOpenSettings: () {
-                      // Achievement has no config — just toast
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '${NotificationStrings.achievementTitle} ${NotificationStrings.on_.toLowerCase()}',
-                          ),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
+                    onOpenSettings: _showAchievementSheet,
                   ),
                 ),
                 _divider(),
                 Opacity(
                   opacity: effectiveEnabled ? 1 : 0.4,
                   child: NotificationCard(
-                    title: NotificationStrings.recoveryTitle,
-                    subtitle: NotificationStrings.recoverySubtitle,
+                    title: l10n.notif_recovery,
+                    subtitle: l10n.notif_recoverySub,
                     icon: Icons.spa_outlined,
                     iconColor: AppTheme.hydrationBlue,
                     isEnabled: effectiveEnabled && _recovery,
-                    onOpenSettings: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            '${NotificationStrings.recoveryTitle} ${NotificationStrings.on_.toLowerCase()}',
-                          ),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
+                    onOpenSettings: _showRecoverySheet,
                   ),
                 ),
               ],
@@ -408,7 +422,7 @@ class _NotificationSettingsScreenState
           // ── Progress & Stats ──
           _sectionHeader(
             Icons.bar_chart_outlined,
-            NotificationStrings.progressStats,
+            l10n.notif_progressStats,
           ),
           const SizedBox(height: 8),
           Card(
@@ -428,8 +442,8 @@ class _NotificationSettingsScreenState
                 Opacity(
                   opacity: effectiveEnabled ? 1 : 0.4,
                   child: NotificationCard(
-                    title: NotificationStrings.weeklyProgressTitle,
-                    subtitle: NotificationStrings.weeklyProgressSubtitle,
+                    title: l10n.notif_weeklyProgress,
+                    subtitle: l10n.notif_weeklyProgressSub,
                     icon: Icons.trending_up_outlined,
                     iconColor: AppTheme.hydrationBlue,
                     isEnabled: effectiveEnabled && _weeklyProgress,
@@ -441,8 +455,8 @@ class _NotificationSettingsScreenState
                 Opacity(
                   opacity: effectiveEnabled ? 1 : 0.4,
                   child: NotificationCard(
-                    title: NotificationStrings.weightFollowUpTitle,
-                    subtitle: NotificationStrings.weightFollowUpSubtitle,
+                    title: l10n.notif_weightFollowUp,
+                    subtitle: l10n.notif_weightFollowUpSub,
                     icon: Icons.monitor_weight_outlined,
                     iconColor: AppTheme.stepsOrange,
                     isEnabled: effectiveEnabled && _weightFollowUp,
@@ -459,7 +473,7 @@ class _NotificationSettingsScreenState
           // ── Quiet Hours ──
           _sectionHeader(
             Icons.do_not_disturb_outlined,
-            NotificationStrings.quietHours,
+            l10n.notif_quietHours,
           ),
           const SizedBox(height: 8),
           Card(
@@ -481,13 +495,13 @@ class _NotificationSettingsScreenState
                 size: 36,
               ),
               title: Text(
-                NotificationStrings.quietHours,
+                l10n.notif_quietHours,
                 style: TextStyle(color: AppTheme.textPrimary(context)),
               ),
               subtitle: Text(
                 _quietHoursEnabled
-                    ? NotificationStrings.active
-                    : NotificationStrings.off,
+                    ? l10n.notif_active
+                    : l10n.notif_off,
                 style: TextStyle(
                   color: _quietHoursEnabled
                       ? AppTheme.achievementGreen
@@ -507,7 +521,7 @@ class _NotificationSettingsScreenState
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        NotificationStrings.active,
+                        l10n.notif_active,
                         style: TextStyle(
                           fontSize: 11,
                           color: AppTheme.achievementGreen,
@@ -516,8 +530,8 @@ class _NotificationSettingsScreenState
                       ),
                     ),
                   const SizedBox(width: 4),
-                  Icon(
-                    Icons.chevron_right,
+                  DirectionalIcon(
+                    icon: Icons.chevron_right,
                     color: AppTheme.textTertiary(context),
                   ),
                 ],
@@ -526,88 +540,6 @@ class _NotificationSettingsScreenState
             ),
           ),
 
-          const SizedBox(height: 32),
-
-          // ── Language & Units (for completeness) ──
-          _sectionHeader(
-            Icons.language_outlined,
-            'Language & Units',
-          ),
-          const SizedBox(height: 8),
-          Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.15),
-                width: 1,
-              ),
-            ),
-            elevation: 0,
-            child: Column(
-              children: [
-                SwitchListTile(
-                  contentPadding: const EdgeInsets.only(left: 16, right: 16),
-                  secondary: ColoredIconBox(
-                    icon: Icons.translate_outlined,
-                    color: AppTheme.textSecondary(context),
-                    size: 36,
-                  ),
-                  title: Text(
-                    'English / العربية',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary(context),
-                      fontSize: 15,
-                    ),
-                  ),
-                  subtitle: Text(
-                    _languageIsArabic ? 'العربية' : 'English',
-                    style: TextStyle(
-                      color: AppTheme.textTertiary(context),
-                      fontSize: 13,
-                    ),
-                  ),
-                  value: _languageIsArabic,
-                  onChanged: (v) async {
-                    final code = v ? 'ar' : 'en';
-                    await _repo.setLanguageCode(code);
-                    NotificationStrings.setOverride(code);
-                    setState(() => _languageIsArabic = v);
-                  },
-                ),
-                _divider(),
-                SwitchListTile(
-                  contentPadding: const EdgeInsets.only(left: 16, right: 16),
-                  secondary: ColoredIconBox(
-                    icon: Icons.straighten_outlined,
-                    color: AppTheme.textSecondary(context),
-                    size: 36,
-                  ),
-                  title: Text(
-                    'Metric / Imperial',
-                    style: TextStyle(
-                      color: AppTheme.textPrimary(context),
-                      fontSize: 15,
-                    ),
-                  ),
-                  subtitle: Text(
-                    _useMetric ? 'Metric (kg, km)' : 'Imperial (lb, mi)',
-                    style: TextStyle(
-                      color: AppTheme.textTertiary(context),
-                      fontSize: 13,
-                    ),
-                  ),
-                  value: _useMetric,
-                  onChanged: (v) async {
-                    await _repo.setMetric(v);
-                    setState(() => _useMetric = v);
-                  },
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

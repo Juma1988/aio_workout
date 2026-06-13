@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../l10n/app_localizations.dart';
 import '../services/notification_repository.dart';
 import '../services/notification_service.dart';
-import '../services/notification_strings.dart';
 
 class MissedWorkoutConfigScreen extends StatefulWidget {
   const MissedWorkoutConfigScreen({super.key});
@@ -45,9 +45,10 @@ class _MissedWorkoutConfigScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(NotificationStrings.missedWorkoutConfigTitle),
+        title: Text(l10n.notif_missedWorkout),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
@@ -75,7 +76,7 @@ class _MissedWorkoutConfigScreenState
             ),
             const SizedBox(height: 24),
             Text(
-              NotificationStrings.missedWorkoutConfigTitle,
+              l10n.notif_missedWorkout,
               style: TextStyle(
                 color: AppTheme.textPrimary(context),
                 fontSize: 20,
@@ -84,7 +85,7 @@ class _MissedWorkoutConfigScreenState
             ),
             const SizedBox(height: 8),
             Text(
-              NotificationStrings.missedWorkoutConfigHeader,
+              l10n.notif_missedWorkoutConfigHeader,
               style: TextStyle(
                 color: AppTheme.textSecondary(context),
                 fontSize: 14,
@@ -93,7 +94,7 @@ class _MissedWorkoutConfigScreenState
 
             const SizedBox(height: 32),
             Text(
-              NotificationStrings.waitTimeLabel,
+              l10n.notif_waitTime,
               style: TextStyle(
                 color: AppTheme.textPrimary(context),
                 fontWeight: FontWeight.w600,
@@ -102,7 +103,7 @@ class _MissedWorkoutConfigScreenState
             ),
             const SizedBox(height: 4),
             Text(
-              NotificationStrings.waitTimeDesc,
+              l10n.notif_waitTimeDesc,
               style: TextStyle(
                 color: AppTheme.textTertiary(context),
                 fontSize: 13,
@@ -197,7 +198,7 @@ class _MissedWorkoutConfigScreenState
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: Text(
-                  NotificationStrings.done,
+                  l10n.notif_done,
                   style: const TextStyle(fontSize: 16),
                 ),
               ),

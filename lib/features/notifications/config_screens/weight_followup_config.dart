@@ -2,9 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../l10n/app_localizations.dart';
 import '../services/notification_repository.dart';
 import '../services/notification_service.dart';
-import '../services/notification_strings.dart';
 
 class WeightFollowUpConfigScreen extends StatefulWidget {
   const WeightFollowUpConfigScreen({super.key});
@@ -53,6 +53,7 @@ class _WeightFollowUpConfigScreenState
   }
 
   void _showWeightPicker() {
+    final l10n = AppLocalizations.of(context);
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
@@ -82,7 +83,7 @@ class _WeightFollowUpConfigScreenState
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    NotificationStrings.targetWeight,
+                    l10n.notif_targetWeight,
                     style: TextStyle(
                       color: AppTheme.textPrimary(context),
                       fontSize: 18,
@@ -150,7 +151,7 @@ class _WeightFollowUpConfigScreenState
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      child: const Text('Set Target'),
+                      child: Text(l10n.notif_save),
                     ),
                   ),
                 ],
@@ -164,13 +165,14 @@ class _WeightFollowUpConfigScreenState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final weightStr = _useKg
         ? '${_targetWeightKg.toStringAsFixed(0)} kg'
         : '${(_targetWeightKg * 2.205).toStringAsFixed(0)} lb';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(NotificationStrings.weightConfigTitle),
+        title: Text(l10n.notif_weightFollowUp),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pop(),
@@ -196,7 +198,7 @@ class _WeightFollowUpConfigScreenState
           ),
           const SizedBox(height: 24),
           Text(
-            NotificationStrings.weightConfigTitle,
+              l10n.notif_weightFollowUp,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppTheme.textPrimary(context),
@@ -206,7 +208,7 @@ class _WeightFollowUpConfigScreenState
           ),
           const SizedBox(height: 8),
           Text(
-            NotificationStrings.weightConfigHeader,
+            l10n.notif_weightConfigHeader,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppTheme.textSecondary(context),
@@ -216,7 +218,7 @@ class _WeightFollowUpConfigScreenState
 
           const SizedBox(height: 32),
           Text(
-            NotificationStrings.targetWeight,
+            l10n.notif_targetWeight,
             style: TextStyle(
               color: AppTheme.textPrimary(context),
               fontWeight: FontWeight.w600,
@@ -290,7 +292,7 @@ class _WeightFollowUpConfigScreenState
 
           const SizedBox(height: 28),
           Text(
-            NotificationStrings.remindEvery,
+            l10n.notif_remindEvery,
             style: TextStyle(
               color: AppTheme.textPrimary(context),
               fontWeight: FontWeight.w600,
@@ -398,7 +400,7 @@ class _WeightFollowUpConfigScreenState
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               child: Text(
-                NotificationStrings.done,
+                l10n.notif_done,
                 style: const TextStyle(fontSize: 16),
               ),
             ),

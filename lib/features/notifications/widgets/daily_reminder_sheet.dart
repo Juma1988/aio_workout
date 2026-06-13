@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
-import '../services/notification_strings.dart';
+import '../../../l10n/app_localizations.dart';
 
 class DailyReminderSheet extends StatefulWidget {
   final bool initialEnabled;
@@ -31,10 +31,11 @@ class _DailyReminderSheetState extends State<DailyReminderSheet> {
   }
 
   Future<void> _pickTime() async {
+    final l10n = AppLocalizations.of(context);
     final picked = await showTimePicker(
       context: context,
       initialTime: _time,
-      helpText: NotificationStrings.get('Choose reminder time', 'اختر وقت التذكير'),
+      helpText: l10n.notif_dailyReminderConfigBody,
     );
     if (picked != null && mounted) {
       setState(() => _time = picked);
@@ -43,6 +44,7 @@ class _DailyReminderSheetState extends State<DailyReminderSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
       child: Column(
@@ -56,34 +58,31 @@ class _DailyReminderSheetState extends State<DailyReminderSheet> {
             ),
           ),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              const Icon(Icons.alarm_outlined, size: 22, color: AppTheme.stepsOrange),
-              const SizedBox(width: 10),
-              Text(
-                NotificationStrings.dailyReminderConfigTitle,
-                style: TextStyle(
-                  color: AppTheme.textPrimary(context),
-                  fontSize: 18, fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(
+              color: AppTheme.stepsOrange.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.alarm_outlined, size: 28, color: AppTheme.stepsOrange),
           ),
+          const SizedBox(height: 16),
+          Text(l10n.notif_dailyReminder,
+            style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text(
-            NotificationStrings.dailyReminderConfigBody,
-            style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 13),
-          ),
+          Text(l10n.notif_dailyReminderSub,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 13)),
           const SizedBox(height: 24),
-
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text('Enable Daily Reminder',
               style: TextStyle(color: AppTheme.textPrimary(context), fontWeight: FontWeight.w600)),
+            subtitle: Text('Receive a daily reminder to complete your workout',
+              style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 12)),
             value: _enabled,
             onChanged: (v) => setState(() => _enabled = v),
           ),
-
           if (_enabled) ...[
             const SizedBox(height: 16),
             InkWell(
@@ -97,12 +96,18 @@ class _DailyReminderSheetState extends State<DailyReminderSheet> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.access_time, size: 20, color: AppTheme.stepsOrange),
+                    Icon(Icons.access_time, size: 20, color: AppTheme.stepsOrange),
                     const SizedBox(width: 12),
-                    Expanded(child: Text('Reminder time',
-                      style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 14))),
-                    Text(_time.format(context),
-                      style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 16, fontWeight: FontWeight.w600)),
+                    Expanded(
+                      child: Text(
+                        l10n.notif_tapToChange,
+                        style: TextStyle(color: AppTheme.textSecondary(context), fontSize: 14),
+                      ),
+                    ),
+                    Text(
+                      _time.format(context),
+                      style: TextStyle(color: AppTheme.textPrimary(context), fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(width: 8),
                     Icon(Icons.edit_outlined, size: 16, color: AppTheme.textTertiary(context)),
                   ],
@@ -110,7 +115,6 @@ class _DailyReminderSheetState extends State<DailyReminderSheet> {
               ),
             ),
           ],
-
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
@@ -124,7 +128,7 @@ class _DailyReminderSheetState extends State<DailyReminderSheet> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: Text(NotificationStrings.done),
+              child: Text(l10n.notif_done),
             ),
           ),
         ],

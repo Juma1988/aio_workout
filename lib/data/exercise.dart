@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+import 'exercise_localizer.dart';
+
 enum Level {
   beginner,
   intermediate,
@@ -18,6 +21,11 @@ enum Level {
         return 'Custom';
     }
   }
+
+  /// Returns the localized level label for display purposes.
+  /// Uses [ExerciseLocalizer.levelLabel] to look up the ARB key.
+  String localized(AppLocalizations l10n) =>
+      ExerciseLocalizer.levelLabel(l10n, name);
 
   Color get color {
     switch (this) {
@@ -71,6 +79,16 @@ const Map<String, ExerciseCategory> exerciseCategories = {
   ),
 };
 
+const Map<String, IconData> exerciseCategoryIcons = {
+  'strength': Icons.fitness_center,
+  'cardio': Icons.directions_run,
+  'core': Icons.sync_alt,
+  'flexibility': Icons.self_improvement,
+  'fullbody': Icons.whatshot,
+  'upperbody': Icons.arrow_upward,
+  'lowerbody': Icons.arrow_downward,
+};
+
 const Map<String, TargetMuscle> targetMuscles = {
   'chest': TargetMuscle(key: 'chest', label: 'Chest', color: Color(0xFFFF5722)),
   'back': TargetMuscle(key: 'back', label: 'Back', color: Color(0xFF2196F3)),
@@ -95,6 +113,12 @@ const Map<String, TargetMuscle> targetMuscles = {
 };
 
 class ExerciseCategory {
+  static const unknown = ExerciseCategory(
+    key: 'other',
+    label: 'Other',
+    color: Color(0xFF9E9E9E),
+  );
+
   final String key;
   final String label;
   final Color color;
@@ -120,6 +144,12 @@ class ExerciseCategory {
 }
 
 class TargetMuscle {
+  static const unknown = TargetMuscle(
+    key: 'other',
+    label: 'Other',
+    color: Color(0xFF9E9E9E),
+  );
+
   final String key;
   final String label;
   final Color color;
@@ -219,8 +249,8 @@ class Exercise {
   final DateTime? updatedAt;
   final String createdByUserId;
 
-  ExerciseCategory get category => exerciseCategories[categoryKey]!;
-  TargetMuscle get targetMuscle => targetMuscles[targetMuscleKey]!;
+  ExerciseCategory get category => exerciseCategories[categoryKey] ?? ExerciseCategory.unknown;
+  TargetMuscle get targetMuscle => targetMuscles[targetMuscleKey] ?? TargetMuscle.unknown;
 
   Exercise({
     required this.uuid,
@@ -654,6 +684,22 @@ final Exercise sideLyingLegRaise = Exercise(
   ],
   equipment: 'bodyweight',
   tags: ['lower body', 'glutes', 'hips'],
+  createdAt: DateTime(2025, 1, 1),
+);
+
+final Exercise restExercise = Exercise(
+  uuid: 'ex-rest-001',
+  name: 'Rest Day',
+  description: 'Take the day off to recover. Your muscles repair and grow during rest.',
+  isDefault: true,
+  categoryKey: 'flexibility',
+  targetMuscleKey: 'fullbody',
+  recommendedLevel: Level.beginner,
+  levels: [
+    ExerciseLevel(level: Level.beginner, durationSeconds: 0),
+  ],
+  equipment: 'bodyweight',
+  tags: ['rest', 'recovery'],
   createdAt: DateTime(2025, 1, 1),
 );
 

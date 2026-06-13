@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/directional_icon.dart';
 import '../../data/exercise.dart';
+import '../../services/workout_storage_service.dart';
 
 /// Full-screen exercise library page (pushed from Profile).
 /// Shows list of cards with glanceable prescription numbers (recommended level values).
@@ -23,14 +25,35 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
   String _search = '';
   List<Exercise> _customExercises = [];
   bool _isLoading = true;
-  String?
-  _activeFilter; // null = All, 'custom' = only customs, or a category key e.g. 'core'
+  String? _activeFilter;
   final _selectedLevels = <String, _LevelSelection>{};
+  Map<String, int> _completionCounts = {};
 
   @override
   void initState() {
     super.initState();
     _loadCustoms();
+    _loadUsageStats();
+  }
+
+  Future<void> _loadUsageStats() async {
+    try {
+      final sessions = await WorkoutStorageService().loadSessions();
+      final counts = <String, int>{};
+      if (sessions.isNotEmpty) {
+        for (final session in sessions) {
+          final exercises = session.exercises;
+          if (exercises.isEmpty) continue;
+          for (final ex in exercises) {
+            final uuid = ex.exerciseUuid;
+            counts[uuid] = (counts[uuid] ?? 0) + 1;
+          }
+        }
+      }
+      if (mounted) setState(() => _completionCounts = counts);
+    } catch (_) {
+      if (mounted) setState(() => _completionCounts = {});
+    }
   }
 
   Future<void> _loadCustoms() async {
@@ -261,12 +284,16 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
       suggestedName = _generateUniqueCustomName();
     }
 
-    final saved = await showDialog<Exercise>(
+    final saved = await showModalBottomSheet<Exercise>(
       context: context,
-      builder: (dialogContext) => _AddExerciseForm(
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => _AddExerciseSheet(
         initial: initial,
         suggestedName: suggestedName,
-        onSave: (exercise) => Navigator.of(dialogContext).pop(exercise),
+        onSave: (exercise) => Navigator.of(sheetContext).pop(exercise),
       ),
     );
 
@@ -381,14 +408,18 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
 
   void _showDetail(Exercise ex) async {
     HapticFeedback.lightImpact();
-    final result = await showDialog<_LevelSelection>(
+    final result = await showModalBottomSheet<_LevelSelection>(
       context: context,
-      builder: (dialogContext) => _ExerciseDetailDialog(
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => _ExerciseDetailSheet(
         exercise: ex,
         onEdit: ex.isDefault
             ? null
             : () {
-                Navigator.of(dialogContext).pop();
+                Navigator.of(sheetContext).pop();
                 _openAddDialog(initial: ex);
               },
       ),
@@ -487,7 +518,7 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
                     ...exerciseCategories.values.map((cat) {
                       final isSelected = _activeFilter == cat.key;
                       return Padding(
-                        padding: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsetsDirectional.only(end: 8),
                         child: _buildFilterChip(
                           label: cat.label,
                           selected: isSelected,
@@ -593,6 +624,7 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
                           return _ExerciseCard(
                             exercise: ex,
                             activeSelection: _selectedLevels[ex.uuid],
+                            timesCompleted: _completionCounts[ex.uuid] ?? 0,
                             onTap: () => _showDetail(ex),
                             onLongPress: ex.isDefault
                                 ? null
@@ -609,21 +641,22 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
   }
 }
 
-/// Card for one exercise in the library list.
-/// Shows name, recommended level + target + parts (pills), plus the concrete
-/// prescription numbers for the recommended level (e.g. "3×12" or "45s") so
-/// users can see the actual workout without tapping.
+/// Premium card for one exercise in the library list.
+/// Shows category icon, dual subtitle (prescription + description),
+/// pills, equipment, usage stats, and colored border.
 class _ExerciseCard extends StatelessWidget {
   final Exercise exercise;
   final _LevelSelection? activeSelection;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final int timesCompleted;
 
   const _ExerciseCard({
     required this.exercise,
     this.activeSelection,
     required this.onTap,
     this.onLongPress,
+    this.timesCompleted = 0,
   });
 
   Level get _activeLevel => activeSelection?.level ?? exercise.recommendedLevel;
@@ -648,49 +681,47 @@ class _ExerciseCard extends StatelessWidget {
     final cat = exercise.category;
     final muscle = exercise.targetMuscle;
     final isCustom = !exercise.isDefault;
-
+    final icon = exerciseCategoryIcons[exercise.categoryKey] ?? Icons.fitness_center;
     final catColor = cat.color;
     final muscleColor = muscle.color;
     final levelColor = _activeLevel.color;
+    final display = _activeDisplay;
+    final desc = exercise.description ?? exercise.name;
 
     return Card(
       elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: catColor.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Leading icon from category
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: catColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: catColor,
-                      shape: BoxShape.circle,
-                    ),
-                    width: 12,
-                    height: 12,
-                  ),
-                ),
+        child: Stack(
+          children: [
+            // Background icon centered
+            Center(
+              child: Icon(
+                icon,
+                size: 96,
+                color: catColor.withValues(alpha: 0.08),
               ),
-              const SizedBox(width: 14),
-
-              // Main content
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Main content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Name + optional Custom badge
+                    // Name + usage badge + Custom badge
                     Row(
                       children: [
                         Expanded(
@@ -703,6 +734,18 @@ class _ExerciseCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (timesCompleted > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Text(
+                              '$timesCompleted\u00d7',
+                              style: TextStyle(
+                                color: AppTheme.textTertiary(context),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         if (isCustom)
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -724,48 +767,51 @@ class _ExerciseCard extends StatelessWidget {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
 
-                    // Level, target muscle, parts (category)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        _buildPill(
-                          context,
-                          label: _activeLevel.label,
-                          color: levelColor,
+                    // Subtitle line 1: prescription numbers
+                    if (display.isNotEmpty)
+                      Text(
+                        display,
+                        style: TextStyle(
+                          color: AppTheme.textSecondary(context),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
-                        _buildPill(
-                          context,
-                          label: muscle.label,
-                          color: muscleColor,
-                        ),
-                        _buildPill(context, label: cat.label, color: catColor),
-                      ],
-                    ),
+                      ),
 
-                    // The actual prescription numbers for the recommended level.
-                    // This is the key "in list" improvement: users see the real
-                    // sets/reps/time/weight at a glance without opening the detail.
-                    if (_activeDisplay.isNotEmpty)
+                    // Subtitle line 2: description (fallback to name for customs)
+                    if (desc.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.only(top: 2),
                         child: Text(
-                          _activeDisplay,
+                          desc,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: AppTheme.textTertiary(context),
                             fontSize: 13,
-                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
 
-                    // Equipment if present (small caption, below numbers)
-                    if (exercise.equipment != null &&
-                        exercise.equipment!.isNotEmpty)
+                    const SizedBox(height: 6),
+
+                    // Pills
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        _buildPill(context, label: _activeLevel.label, color: levelColor),
+                        _buildPill(context, label: muscle.label, color: muscleColor),
+                        _buildPill(context, label: cat.label, color: catColor),
+                      ],
+                    ),
+
+                    // Equipment
+                    if (exercise.equipment != null && exercise.equipment!.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           exercise.equipment!,
                           style: TextStyle(
@@ -779,24 +825,23 @@ class _ExerciseCard extends StatelessWidget {
               ),
 
               // Trailing chevron
-              Icon(Icons.chevron_right, color: AppTheme.textTertiary(context)),
+              DirectionalIcon(icon: Icons.chevron_right, size: 20, color: AppTheme.textTertiary(context)),
             ],
           ),
         ),
-      ),
-    );
+      ],
+    ),
+  ),
+);
   }
 
-  Widget _buildPill(
-    BuildContext context, {
-    required String label,
-    required Color color,
-  }) {
+  Widget _buildPill(BuildContext context, {required String label, required Color color}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 0.5),
       ),
       child: Text(
         label,
@@ -828,17 +873,19 @@ class _LevelSelection {
   });
 }
 
-class _ExerciseDetailDialog extends StatefulWidget {
+/// Detail bottom sheet shown when tapping a card.
+/// Includes level selections (ChoiceChips) that update the displayed values.
+class _ExerciseDetailSheet extends StatefulWidget {
   final Exercise exercise;
   final VoidCallback? onEdit;
 
-  const _ExerciseDetailDialog({required this.exercise, this.onEdit});
+  const _ExerciseDetailSheet({required this.exercise, this.onEdit});
 
   @override
-  State<_ExerciseDetailDialog> createState() => _ExerciseDetailDialogState();
+  State<_ExerciseDetailSheet> createState() => _ExerciseDetailSheetState();
 }
 
-class _ExerciseDetailDialogState extends State<_ExerciseDetailDialog> {
+class _ExerciseDetailSheetState extends State<_ExerciseDetailSheet> {
   late Level _selectedLevel;
   bool _isCustom = false;
   final _setsCtrl = TextEditingController();
@@ -870,9 +917,7 @@ class _ExerciseDetailDialogState extends State<_ExerciseDetailDialog> {
     _repsCtrl.text = ref?.reps?.toString() ?? '';
     _durCtrl.text = ref?.durationSeconds?.toString() ?? '';
     _weightCtrl.text = ref?.weightKg?.toString() ?? '';
-    setState(() {
-      _isCustom = true;
-    });
+    setState(() => _isCustom = true);
   }
 
   void _apply() {
@@ -882,24 +927,12 @@ class _ExerciseDetailDialogState extends State<_ExerciseDetailDialog> {
       final dur = int.tryParse(_durCtrl.text);
       final weight = double.tryParse(_weightCtrl.text);
       Navigator.of(context).pop(
-        _LevelSelection(
-          level: Level.custom,
-          sets: sets,
-          reps: reps,
-          durationSeconds: dur,
-          weightKg: weight,
-        ),
+        _LevelSelection(level: Level.custom, sets: sets, reps: reps, durationSeconds: dur, weightKg: weight),
       );
     } else {
       final lvl = widget.exercise.getLevel(_selectedLevel);
       Navigator.of(context).pop(
-        _LevelSelection(
-          level: _selectedLevel,
-          sets: lvl?.sets,
-          reps: lvl?.reps,
-          durationSeconds: lvl?.durationSeconds,
-          weightKg: lvl?.weightKg,
-        ),
+        _LevelSelection(level: _selectedLevel, sets: lvl?.sets, reps: lvl?.reps, durationSeconds: lvl?.durationSeconds, weightKg: lvl?.weightKg),
       );
     }
   }
@@ -910,246 +943,166 @@ class _ExerciseDetailDialogState extends State<_ExerciseDetailDialog> {
     final cat = ex.category;
     final muscle = ex.targetMuscle;
     final currentLevel = !_isCustom
-        ? (ex.getLevel(_selectedLevel) ??
-              (ex.levels.isNotEmpty ? ex.levels.first : null))
+        ? (ex.getLevel(_selectedLevel) ?? (ex.levels.isNotEmpty ? ex.levels.first : null))
         : null;
 
-    return AlertDialog(
-      title: Text(ex.name),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (ex.description != null && ex.description!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  ex.description!,
-                  style: TextStyle(color: AppTheme.textSecondary(context)),
-                ),
-              ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag handle
+          Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: AppTheme.subtleFill(context, 0.30), borderRadius: BorderRadius.circular(2)))),
+          const SizedBox(height: 20),
 
-            // Category + Target badges
-            Wrap(
-              spacing: 8,
+          // Name
+          Text(ex.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+
+          // Description
+          if (ex.description != null && ex.description!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(ex.description!, style: TextStyle(color: AppTheme.textSecondary(context), height: 1.5)),
+            ),
+
+          // Category + Muscle badges
+          Wrap(spacing: 8, children: [
+            _DetailBadge(label: cat.label, color: cat.color),
+            _DetailBadge(label: muscle.label, color: muscle.color),
+          ]),
+          const SizedBox(height: 12),
+
+          // Level section
+          Text(
+            _isCustom ? 'Custom level' : 'Level: ${_selectedLevel.label}',
+            style: TextStyle(color: _isCustom ? Level.custom.color : _selectedLevel.color, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+
+          // Level chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: [
-                _DetailBadge(label: cat.label, color: cat.color),
-                _DetailBadge(label: muscle.label, color: muscle.color),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            Text(
-              _isCustom ? 'Custom level' : 'Level: ${_selectedLevel.label}',
-              style: TextStyle(
-                color: _isCustom ? Level.custom.color : _selectedLevel.color,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            Text(
-              'Level values',
-              style: TextStyle(
-                color: AppTheme.textSecondary(context),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 6),
-
-            // Level selection chips + Customize chip
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  ...ex.levels.map((lvl) {
-                    final isSel = lvl.level == _selectedLevel && !_isCustom;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(lvl.level.label),
-                        selected: isSel,
-                        selectedColor: lvl.level.color.withValues(alpha: 0.3),
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() {
-                              _selectedLevel = lvl.level;
-                              _isCustom = false;
-                            });
-                          }
-                        },
-                      ),
-                    );
-                  }),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                ...ex.levels.map((lvl) {
+                  final isSel = lvl.level == _selectedLevel && !_isCustom;
+                  return Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 8),
                     child: ChoiceChip(
-                      label: const Text('Customize'),
-                      selected: _isCustom,
-                      selectedColor: Level.custom.color.withValues(alpha: 0.3),
+                      label: Text(lvl.level.label),
+                      selected: isSel,
+                      selectedColor: lvl.level.color.withValues(alpha: 0.3),
                       onSelected: (selected) {
-                        if (selected) _selectCustom();
+                        if (selected) setState(() { _selectedLevel = lvl.level; _isCustom = false; });
                       },
                     ),
-                  ),
-                ],
-              ),
+                  );
+                }),
+                ChoiceChip(
+                  label: const Text('Customize'),
+                  selected: _isCustom,
+                  selectedColor: Level.custom.color.withValues(alpha: 0.3),
+                  onSelected: (selected) { if (selected) _selectCustom(); },
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
+          ),
+          const SizedBox(height: 8),
 
-            // Read-only level values
-            if (!_isCustom && currentLevel != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.subtleFill(context, 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (currentLevel.sets != null)
-                      _ValueRow(label: 'Sets', value: '${currentLevel.sets}'),
-                    if (currentLevel.reps != null)
-                      _ValueRow(label: 'Reps', value: '${currentLevel.reps}'),
-                    if (currentLevel.durationSeconds != null)
-                      _ValueRow(
-                        label: 'Duration',
-                        value: '${currentLevel.durationSeconds}s',
-                      ),
-                    if (currentLevel.weightKg != null)
-                      _ValueRow(
-                        label: 'Weight',
-                        value: '${currentLevel.weightKg} kg',
-                      ),
-                    if (currentLevel.sets == null &&
-                        currentLevel.reps == null &&
-                        currentLevel.durationSeconds == null &&
-                        currentLevel.weightKg == null)
-                      Text(
-                        'No specific values defined for this level.',
-                        style: TextStyle(
-                          color: AppTheme.textTertiary(context),
-                          fontSize: 13,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+          // Read-only level values
+          if (!_isCustom && currentLevel != null)
+            _buildLevelValues(context, currentLevel),
 
-            // Editable custom fields
-            if (_isCustom)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.subtleFill(context, 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _ValueField(
-                      label: 'Sets',
-                      controller: _setsCtrl,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 10),
-                    _ValueField(
-                      label: 'Reps',
-                      controller: _repsCtrl,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 10),
-                    _ValueField(
-                      label: 'Duration (seconds)',
-                      controller: _durCtrl,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 10),
-                    _ValueField(
-                      label: 'Weight (kg)',
-                      controller: _weightCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          // Editable custom fields
+          if (_isCustom)
+            _buildCustomFields(context),
 
-            if (ex.equipment != null && ex.equipment!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  'Equipment: ${ex.equipment}',
-                  style: TextStyle(color: AppTheme.textTertiary(context)),
-                ),
-              ),
-            if (ex.tags.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  'Tags: ${ex.tags.join(', ')}',
-                  style: TextStyle(color: AppTheme.textTertiary(context)),
-                ),
-              ),
-          ],
-        ),
+          // Equipment + tags
+          if (ex.equipment != null && ex.equipment!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text('Equipment: ${ex.equipment}', style: TextStyle(color: AppTheme.textTertiary(context))),
+            ),
+          if (ex.tags.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text('Tags: ${ex.tags.join(", ")}', style: TextStyle(color: AppTheme.textTertiary(context))),
+            ),
+
+          const SizedBox(height: 16),
+
+          // Action buttons
+          Row(
+            children: [
+              if (widget.onEdit != null)
+                TextButton(onPressed: widget.onEdit, child: const Text('Edit')),
+              const Spacer(),
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+              const SizedBox(width: 8),
+              FilledButton(onPressed: _apply, child: const Text('Apply')),
+            ],
+          ),
+        ],
       ),
-      actions: [
-        if (widget.onEdit != null)
-          TextButton(onPressed: widget.onEdit, child: const Text('Edit')),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(onPressed: _apply, child: const Text('Apply')),
-      ],
     );
   }
-}
 
-class _ValueField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final TextInputType keyboardType;
+  Widget _buildLevelValues(BuildContext context, ExerciseLevel level) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppTheme.subtleFill(context, 0.08), borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (level.sets != null) _ValueRow(label: 'Sets', value: '${level.sets}'),
+          if (level.reps != null) _ValueRow(label: 'Reps', value: '${level.reps}'),
+          if (level.durationSeconds != null) _ValueRow(label: 'Duration', value: '${level.durationSeconds}s'),
+          if (level.weightKg != null) _ValueRow(label: 'Weight', value: '${level.weightKg} kg'),
+          if (level.sets == null && level.reps == null && level.durationSeconds == null && level.weightKg == null)
+            Text('No specific values defined for this level.', style: TextStyle(color: AppTheme.textTertiary(context), fontSize: 13)),
+        ],
+      ),
+    );
+  }
 
-  const _ValueField({
-    required this.label,
-    required this.controller,
-    required this.keyboardType,
-  });
+  Widget _buildCustomFields(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: AppTheme.subtleFill(context, 0.08), borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildField(context, 'Sets', _setsCtrl, TextInputType.number),
+          const SizedBox(height: 8),
+          _buildField(context, 'Reps', _repsCtrl, TextInputType.number),
+          const SizedBox(height: 8),
+          _buildField(context, 'Duration (seconds)', _durCtrl, TextInputType.number),
+          const SizedBox(height: 8),
+          _buildField(context, 'Weight (kg)', _weightCtrl, const TextInputType.numberWithOptions(decimal: true)),
+        ],
+      ),
+    );
+  }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildField(BuildContext context, String label, TextEditingController ctrl, TextInputType keyboardType) {
     return Row(
       children: [
-        SizedBox(
-          width: 130,
-          child: Text(
-            label,
-            style: TextStyle(color: AppTheme.textSecondary(context)),
-          ),
-        ),
+        SizedBox(width: 130, child: Text(label, style: TextStyle(color: AppTheme.textSecondary(context)))),
         const SizedBox(width: 8),
         SizedBox(
           width: 80,
           child: TextField(
-            controller: controller,
+            controller: ctrl,
             keyboardType: keyboardType,
             style: TextStyle(color: AppTheme.textPrimary(context)),
             decoration: InputDecoration(
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 6,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
             ),
           ),
         ),
@@ -1216,25 +1169,25 @@ class _ValueRow extends StatelessWidget {
   }
 }
 
-/// The add / edit custom exercise dialog form.
+/// Add / edit custom exercise bottom sheet form.
 /// Supports the "1 difficulty" flow: pick one level + enter the numbers that fit the user.
 /// Uses a switch to gray/disable reps vs duration fields.
-class _AddExerciseForm extends StatefulWidget {
+class _AddExerciseSheet extends StatefulWidget {
   final Exercise? initial;
   final String? suggestedName;
   final ValueChanged<Exercise> onSave;
 
-  const _AddExerciseForm({
+  const _AddExerciseSheet({
     this.initial,
     this.suggestedName,
     required this.onSave,
   });
 
   @override
-  State<_AddExerciseForm> createState() => _AddExerciseFormState();
+  State<_AddExerciseSheet> createState() => _AddExerciseSheetState();
 }
 
-class _AddExerciseFormState extends State<_AddExerciseForm> {
+class _AddExerciseSheetState extends State<_AddExerciseSheet> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nameCtrl;
@@ -1305,8 +1258,6 @@ class _AddExerciseFormState extends State<_AddExerciseForm> {
   }
 
   void _submit() {
-    // Name is optional. If blank we auto-generate a unique name like "custom_exercise_01"
-    // in the parent after the dialog closes. We no longer block submit here.
     final name = _nameCtrl.text.trim();
 
     final sets = int.tryParse(_setsCtrl.text.trim());
@@ -1359,164 +1310,164 @@ class _AddExerciseFormState extends State<_AddExerciseForm> {
         .map((m) => DropdownMenuItem(value: m.key, child: Text(m.label)))
         .toList();
 
-    return AlertDialog(
-      title: Text(
-        widget.initial == null ? 'Add Custom Exercise' : 'Edit Custom Exercise',
-      ),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    final isEdit = widget.initial != null;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Drag handle
+          Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: AppTheme.subtleFill(context, 0.30), borderRadius: BorderRadius.circular(2)))),
+          const SizedBox(height: 20),
+
+          // Title
+          Text(
+            isEdit ? 'Edit Custom Exercise' : 'Add Custom Exercise',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 16),
+
+          // Form
+          Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: _nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Exercise name (optional)',
+                      hintText: 'e.g. My Custom Push-ups',
+                    ),
+                    validator: null,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _descCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (optional)',
+                    ),
+                    maxLines: 2,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Category
+                  DropdownButtonFormField<String>(
+                    initialValue: _category,
+                    items: catItems,
+                    onChanged: (v) => setState(() => _category = v!),
+                    decoration: const InputDecoration(labelText: 'Category *'),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Target muscle
+                  DropdownButtonFormField<String>(
+                    initialValue: _targetMuscle,
+                    items: muscleItems,
+                    onChanged: (v) => setState(() => _targetMuscle = v!),
+                    decoration: const InputDecoration(labelText: 'Target Muscle *'),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Recommended level chips
+                  Text('Recommended level *', style: TextStyle(color: AppTheme.textSecondary(context), fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [Level.beginner, Level.intermediate, Level.advanced]
+                        .map((lvl) {
+                          final selected = _recommendedLevel == lvl;
+                          return ChoiceChip(
+                            label: Text(lvl.label),
+                            selected: selected,
+                            selectedColor: lvl.color.withValues(alpha: 0.3),
+                            onSelected: (_) => setState(() => _recommendedLevel = lvl),
+                          );
+                        })
+                        .toList(),
+                  ),
+                  const SizedBox(height: 12),
+
+                  const Divider(),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Duration-based (time/hold)'),
+                    subtitle: const Text('Turn on for planks, cardio etc. Turn off for reps/sets/weight.'),
+                    value: _isDurationBased,
+                    onChanged: (v) => setState(() => _isDurationBased = v),
+                  ),
+
+                  // Numeric fields
+                  _buildAddField('Sets', _setsCtrl, true),
+                  _buildAddField('Reps', _repsCtrl, !_isDurationBased),
+                  _buildAddField('Duration (seconds)', _durCtrl, _isDurationBased),
+                  _buildAddField('Weight (kg)', _weightCtrl, !_isDurationBased),
+
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _equipmentCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Equipment (optional)',
+                      hintText: 'bodyweight, dumbbells...',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _tagsCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Tags (optional, comma separated)',
+                      hintText: 'core, stability',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Buttons
+          Row(
             children: [
-              TextFormField(
-                controller: _nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Exercise name (optional)',
-                  hintText: 'e.g. My Custom Push-ups',
-                ),
-                // Name is optional — we auto-generate a unique default like custom_exercise_01
-                // if left blank, and ensure no duplicates on save.
-                validator: null,
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _descCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Description (optional)',
-                ),
-                maxLines: 2,
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: 8),
-
-              // Category
-              DropdownButtonFormField<String>(
-                initialValue: _category,
-                items: catItems,
-                onChanged: (v) => setState(() => _category = v!),
-                decoration: const InputDecoration(labelText: 'Category *'),
-              ),
-              const SizedBox(height: 8),
-
-              // Target muscle
-              DropdownButtonFormField<String>(
-                initialValue: _targetMuscle,
-                items: muscleItems,
-                onChanged: (v) => setState(() => _targetMuscle = v!),
-                decoration: const InputDecoration(labelText: 'Target Muscle *'),
-              ),
-              const SizedBox(height: 8),
-
-              // Recommended level (single choice chips)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Recommended level *',
-                  style: Theme.of(context).textTheme.labelMedium,
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('Cancel'),
                 ),
               ),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 8,
-                children: [Level.beginner, Level.intermediate, Level.advanced]
-                    .map((lvl) {
-                      final selected = _recommendedLevel == lvl;
-                      return ChoiceChip(
-                        label: Text(lvl.label),
-                        selected: selected,
-                        selectedColor: lvl.color.withValues(alpha: 0.3),
-                        onSelected: (_) =>
-                            setState(() => _recommendedLevel = lvl),
-                      );
-                    })
-                    .toList(),
-              ),
-              const SizedBox(height: 12),
-
-              const Divider(),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Duration-based (time/hold)'),
-                subtitle: const Text(
-                  'Turn on for planks, cardio etc. Turn off for reps/sets/weight.',
-                ),
-                value: _isDurationBased,
-                onChanged: (v) => setState(() => _isDurationBased = v),
-              ),
-
-              // Numeric fields (grayed via enabled)
-              _NumberField(
-                label: 'Sets',
-                controller: _setsCtrl,
-                enabled: true, // often applicable in both
-              ),
-              _NumberField(
-                label: 'Reps',
-                controller: _repsCtrl,
-                enabled: !_isDurationBased,
-              ),
-              _NumberField(
-                label: 'Duration (seconds)',
-                controller: _durCtrl,
-                enabled: _isDurationBased,
-              ),
-              _NumberField(
-                label: 'Weight (kg)',
-                controller: _weightCtrl,
-                enabled: !_isDurationBased,
-              ),
-
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _equipmentCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Equipment (optional)',
-                  hintText: 'bodyweight, dumbbells...',
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _tagsCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Tags (optional, comma separated)',
-                  hintText: 'core, stability',
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: FilledButton(
+                  onPressed: _submit,
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text('Save'),
                 ),
               ),
             ],
           ),
-        ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(onPressed: _submit, child: const Text('Save')),
-      ],
     );
   }
-}
 
-/// Simple labeled numeric input that can be disabled (grayed) for the mode switch.
-class _NumberField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final bool enabled;
-
-  const _NumberField({
-    required this.label,
-    required this.controller,
-    this.enabled = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildAddField(String label, TextEditingController ctrl, bool enabled) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextFormField(
-        controller: controller,
+        controller: ctrl,
         enabled: enabled,
         decoration: InputDecoration(
           labelText: label,
