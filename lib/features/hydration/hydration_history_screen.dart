@@ -1,27 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
-import '../../models/step_data.dart';
-import '../../services/step_history_storage.dart';
-import 'widgets/step_chart.dart';
-import '../dialogs/step_goal_dialog.dart';
+import '../../models/hydration_data.dart';
+import '../../services/hydration_storage.dart';
+import '../dialogs/hydration_goal_dialog.dart';
+import 'widgets/hydration_chart.dart';
 
-class StepHistoryScreen extends StatefulWidget {
-  const StepHistoryScreen({super.key});
+class HydrationHistoryScreen extends StatefulWidget {
+  const HydrationHistoryScreen({super.key});
 
   @override
-  State<StepHistoryScreen> createState() => _StepHistoryScreenState();
+  State<HydrationHistoryScreen> createState() => _HydrationHistoryScreenState();
 }
 
-class _StepHistoryScreenState extends State<StepHistoryScreen>
+class _HydrationHistoryScreenState extends State<HydrationHistoryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final StepHistoryStorage _storage = StepHistoryStorage();
+  final HydrationStorage _storage = HydrationStorage();
 
-  WeeklyStepData? _weekData;
-  MonthlyStepData? _monthData;
-  int _dailyGoal = 10000;
+  WeeklyHydrationData? _weekData;
+  MonthlyHydrationData? _monthData;
+  double _dailyGoal = 2.5;
   bool _loading = true;
   DateTime _selectedWeekStart = DateTime.now();
   DateTime _selectedMonth = DateTime.now();
@@ -81,12 +83,12 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final orange = AppTheme.stepsOrange;
+    final blue = AppTheme.hydrationBlue;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          l10n.home_steps,
+          l10n.home_hydration,
           style: TextStyle(
             fontWeight: FontWeight.w700,
             color: AppTheme.textPrimary(context),
@@ -100,16 +102,16 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.directions_run_rounded, color: orange),
+            icon: Icon(Icons.water_drop_rounded, color: blue),
             onPressed: _openGoalDialog,
             tooltip: 'Daily Goal',
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: orange,
+          labelColor: blue,
           unselectedLabelColor: AppTheme.textTertiary(context),
-          indicatorColor: orange,
+          indicatorColor: blue,
           tabs: const [
             Tab(text: 'Week'),
             Tab(text: 'Month'),
@@ -130,7 +132,7 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
 
   Widget _buildWeekView(BuildContext context) {
     if (_weekData == null) return const Center(child: Text('No data'));
-    final orange = AppTheme.stepsOrange;
+    final blue = AppTheme.hydrationBlue;
 
     final dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final weekEnd = _selectedWeekStart.add(const Duration(days: 6));
@@ -165,34 +167,34 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
           const SizedBox(height: 16),
           _buildStatsRow(
             context,
-            _weekData!.totalSteps.toString(),
-            '${(_weekData!.totalDistanceKm).toStringAsFixed(1)} km',
-            '${_weekData!.totalCaloriesBurned} kcal',
-            '${_weekData!.averageSteps.round()} avg',
+            '${(_weekData!.totalLiters).toStringAsFixed(1)}L',
+            '${(_weekData!.averageDailyLiters).toStringAsFixed(1)}L avg',
+            '${_weekData!.daysMetGoal}/7 days',
+            '${(_weekData!.totalGoalLiters - _weekData!.totalLiters).toStringAsFixed(1)}L remaining',
           ),
           const SizedBox(height: 24),
           Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(
-                color: orange.withValues(alpha: 0.25),
+                color: blue.withValues(alpha: 0.25),
                 width: 1,
               ),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: StepChart(
-                values: _weekData!.days.map((d) => d.steps.toDouble()).toList(),
+              child: HydrationChart(
+                values: _weekData!.days.map((d) => d.totalLiters).toList(),
                 labels: dayLabels,
-                goal: _dailyGoal.toDouble(),
-                color: orange,
+                goal: _dailyGoal,
+                color: blue,
               ),
             ),
           ),
           const SizedBox(height: 16),
           ...List.generate(7, (i) {
             final day = _weekData!.days[i];
-            final reached = day.steps >= _dailyGoal;
+            final reached = day.goalProgress >= 1.0;
             return _buildDayTile(context, dayLabels[i], day, reached);
           }),
         ],
@@ -202,7 +204,7 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
 
   Widget _buildMonthView(BuildContext context) {
     if (_monthData == null) return const Center(child: Text('No data'));
-    final orange = AppTheme.stepsOrange;
+    final blue = AppTheme.hydrationBlue;
     final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     return SingleChildScrollView(
@@ -235,27 +237,27 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
           const SizedBox(height: 16),
           _buildStatsRow(
             context,
-            _monthData!.totalSteps.toString(),
-            '${(_monthData!.totalDistanceKm).toStringAsFixed(1)} km',
-            '${_monthData!.totalCaloriesBurned} kcal',
+            '${(_monthData!.totalLiters).toStringAsFixed(1)}L',
+            '${(_monthData!.averageDailyLiters).toStringAsFixed(1)}L avg',
             '${_monthData!.activeDays} days',
+            '${_monthData!.daysMetGoal}/${_monthData!.activeDays} met goal',
           ),
           const SizedBox(height: 24),
           Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(
-                color: orange.withValues(alpha: 0.25),
+                color: blue.withValues(alpha: 0.25),
                 width: 1,
               ),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: StepChart(
-                values: _monthData!.weeks.map((w) => w.averageSteps).toList(),
+              child: HydrationChart(
+                values: _monthData!.weeks.map((w) => w.averageDailyLiters).toList(),
                 labels: List.generate(_monthData!.weeks.length, (i) => 'W${i + 1}'),
-                goal: _dailyGoal.toDouble(),
-                color: orange,
+                goal: _dailyGoal,
+                color: blue,
               ),
             ),
           ),
@@ -268,20 +270,20 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
 
   Widget _buildStatsRow(
     BuildContext context,
-    String steps,
-    String distance,
-    String calories,
-    String extra,
+    String total,
+    String avg,
+    String days,
+    String remaining,
   ) {
     return Row(
       children: [
-        _statItem(context, Icons.directions_run, steps, 'Steps'),
+        _statItem(context, Icons.water_drop, total, 'Total'),
         const SizedBox(width: 8),
-        _statItem(context, Icons.straighten, distance, 'Distance'),
+        _statItem(context, Icons.timeline, avg, 'Daily Avg'),
         const SizedBox(width: 8),
-        _statItem(context, Icons.local_fire_department, calories, 'Calories'),
+        _statItem(context, Icons.calendar_today, days, 'Days'),
         const SizedBox(width: 8),
-        _statItem(context, Icons.calendar_today, extra, ''),
+        _statItem(context, Icons.add_circle, remaining, 'Remaining'),
       ],
     );
   }
@@ -296,7 +298,7 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
         ),
         child: Column(
           children: [
-            Icon(icon, size: 16, color: AppTheme.stepsOrange),
+            Icon(icon, size: 16, color: AppTheme.hydrationBlue),
             const SizedBox(height: 4),
             Text(
               value,
@@ -314,6 +316,7 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
                   color: AppTheme.textTertiary(context),
                   fontSize: 10,
                 ),
+                textAlign: TextAlign.center,
               ),
           ],
         ),
@@ -321,9 +324,9 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
     );
   }
 
-  Widget _buildDayTile(BuildContext context, String label, DailyStepSummary day, bool reached) {
-    final progress = _dailyGoal > 0 ? (day.steps / _dailyGoal).clamp(0.0, 1.0) : 0.0;
-    final orange = AppTheme.stepsOrange;
+  Widget _buildDayTile(BuildContext context, String label, DailyHydrationSummary day, bool reached) {
+    final progress = day.goalProgress;
+    final blue = AppTheme.hydrationBlue;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -353,7 +356,7 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
                 value: progress,
                 backgroundColor: AppTheme.subtleFill(context, 0.1),
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  reached ? AppTheme.achievementGreen : orange,
+                  reached ? AppTheme.achievementGreen : blue,
                 ),
                 minHeight: 6,
               ),
@@ -363,7 +366,7 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
           SizedBox(
             width: 60,
             child: Text(
-              '${day.steps}',
+              '${day.totalLiters.toStringAsFixed(1)}L',
               style: TextStyle(
                 color: AppTheme.textPrimary(context),
                 fontWeight: FontWeight.w600,
@@ -383,12 +386,12 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
   }
 
   Widget _buildMonthlySummaryCard(BuildContext context) {
-    final orange = AppTheme.stepsOrange;
+    final blue = AppTheme.hydrationBlue;
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: orange.withValues(alpha: 0.25),
+          color: blue.withValues(alpha: 0.25),
           width: 1,
         ),
       ),
@@ -406,11 +409,10 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
               ),
             ),
             const SizedBox(height: 12),
-            _summaryRow(context, 'Total Steps', _monthData!.totalSteps.toString()),
-            _summaryRow(context, 'Total Distance', '${_monthData!.totalDistanceKm.toStringAsFixed(1)} km'),
-            _summaryRow(context, 'Total Calories', '${_monthData!.totalCaloriesBurned} kcal'),
-            _summaryRow(context, 'Daily Average', '${_monthData!.averageSteps.round()} steps'),
+            _summaryRow(context, 'Total Liters', '${_monthData!.totalLiters.toStringAsFixed(1)}L'),
+            _summaryRow(context, 'Goal Met', '${_monthData!.daysMetGoal} days'),
             _summaryRow(context, 'Active Days', '${_monthData!.activeDays}'),
+            _summaryRow(context, 'Daily Average', '${_monthData!.averageDailyLiters.toStringAsFixed(1)}L'),
           ],
         ),
       ),
@@ -450,13 +452,17 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
 
   Future<void> _openGoalDialog() async {
     HapticFeedback.lightImpact();
-    final newGoal = await showDialog<int>(
-      context: context,
-      builder: (_) => StepGoalDialog(currentGoal: _dailyGoal),
+    final prefs = await SharedPreferences.getInstance();
+    final weight = prefs.getDouble('profile_weight_kg');
+    final result = await showHydrationGoalDialog(
+      context,
+      currentGoalLiters: _dailyGoal,
+      isAutoCalculated: false,
+      weightKg: weight,
     );
-    if (newGoal != null && newGoal != _dailyGoal) {
-      await _storage.saveDailyGoal(newGoal);
-      _dailyGoal = newGoal;
+    if (result != null && result.$1 != _dailyGoal) {
+      await _storage.saveDailyGoal(result.$1);
+      _dailyGoal = result.$1;
       _loadData();
     }
   }

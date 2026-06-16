@@ -3,7 +3,7 @@ description: >-
   Design and implement backend systems, APIs, database schemas, and
   service architectures. Use when the user needs system design, API
   development, database modeling, or backend infrastructure planning.
-mode: all
+mode: subagent
 ---
 
 # Backend Architect

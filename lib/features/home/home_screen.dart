@@ -17,6 +17,7 @@ import '../achievements/widgets/achievement_preview_card.dart';
 import '../dialogs/achivment_dialog.dart';
 import '../dialogs/exercise_progress_dialog.dart';
 import '../dialogs/weight_log_sheet.dart';
+import '../hydration/hydration_history_screen.dart';
 import '../steps/step_history_screen.dart';
 import 'models/trend_info.dart';
 import 'painters/weight_spark_painter.dart';
@@ -55,6 +56,7 @@ class HomeScreen extends StatefulWidget {
   final int stepsPerClick;
   final int hydrationMLPerClick;
   final int stepsGoal;
+  final double hydrationGoal;
   final bool useSensor;
 
   /// When true, today's workout has already been completed.
@@ -89,6 +91,7 @@ class HomeScreen extends StatefulWidget {
     this.stepsPerClick = 200,
     this.hydrationMLPerClick = 250,
     this.stepsGoal = 10000,
+    this.hydrationGoal = 2.5,
     this.useSensor = true,
     this.isTodayCompleted = false,
   });
@@ -134,8 +137,7 @@ class _HomeScreenState extends State<HomeScreen>
   String _lastGreeting = '';
   DateTime? _workoutStartTime;
   final List<CurvedAnimation?> _cachedSectionCurves = List.filled(7, null);
-  List<WeightEntry>? _cachedSortedWeights;
-  TrendInfo? _cachedTrend;
+  final List<CurvedAnimation?> _cachedBarCurves = List.filled(7, null);
   String? _restTimerExerciseUuid;
 
   String get _greeting {
@@ -206,15 +208,6 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   @override
-  void didUpdateWidget(HomeScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.weightEntries != widget.weightEntries) {
-      _cachedSortedWeights = null;
-      _cachedTrend = null;
-    }
-  }
-
-  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       setState(() {});
@@ -226,6 +219,9 @@ class _HomeScreenState extends State<HomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     _greetingTimer?.cancel();
     for (final c in _cachedSectionCurves) {
+      c?.dispose();
+    }
+    for (final c in _cachedBarCurves) {
       c?.dispose();
     }
     _entranceController.dispose();
@@ -286,6 +282,9 @@ class _HomeScreenState extends State<HomeScreen>
       if (widget.showSteps) {
         rowChildren.add(Expanded(child: _buildStepsCard(context)));
       }
+      if (widget.showSteps && widget.showHydration) {
+        rowChildren.add(const SizedBox(width: 10));
+      }
       if (widget.showHydration) {
         rowChildren.add(Expanded(child: _buildHydrationCard(context)));
       }
@@ -294,9 +293,12 @@ class _HomeScreenState extends State<HomeScreen>
         const SizedBox(height: 16),
         _buildStaggeredSection(
           child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: rowChildren,
+            child: SizedBox(
+              width: double.infinity,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: rowChildren,
+              ),
             ),
           ),
           index: sectionIndex++,
@@ -346,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen>
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: children,
                 ),
               ),
@@ -441,18 +443,21 @@ class _HomeScreenState extends State<HomeScreen>
     final goal = widget.stepsGoal;
     final distanceKm = StepEntry.stepsToDistanceKm(_steps);
     final calories = StepEntry.stepsToCalories(_steps);
-    final card = Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: orange.withValues(alpha: 0.25),
-          width: 1,
+    final card = SizedBox(
+      height: 130,
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: orange.withValues(alpha: 0.25),
+            width: 1,
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Stack(
-          children: [
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Stack(
+            alignment: AlignmentDirectional.center,
+            children: [
             Center(
               child: Semantics(
                 excludeSemantics: true,
@@ -502,7 +507,7 @@ class _HomeScreenState extends State<HomeScreen>
                             },
                           ),
                           Text(
-                            '${goal ~/ 1000}k goal',
+                            l10n.home_kGoal(goal ~/ 1000),
                             style: TextStyle(
                               color: AppTheme.textSecondary(context),
                               fontSize: 12,
@@ -513,9 +518,9 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     const SizedBox(width: 10),
                     ProgressRing(
-                      progress: (_steps / goal.toDouble()).clamp(0.0, 1.0),
-                      centerLabel: '${((_steps / goal) * 100).round()}%',
-                      bottomLabel: '${goal ~/ 1000}k',
+                      progress: goal > 0 ? (_steps / goal.toDouble()).clamp(0.0, 1.0) : 0.0,
+                      centerLabel: goal > 0 ? '${((_steps / goal) * 100).round()}%' : '0%',
+                      bottomLabel: l10n.home_kLabel(goal ~/ 1000),
                       color: orange,
                       size: 50,
                     ),
@@ -527,13 +532,13 @@ class _HomeScreenState extends State<HomeScreen>
                     _stepMetricChip(
                       context,
                       Icons.straighten,
-                      '${distanceKm.toStringAsFixed(1)} km',
+                      l10n.home_km(distanceKm.toStringAsFixed(1)),
                     ),
                     const SizedBox(width: 8),
                     _stepMetricChip(
                       context,
                       Icons.local_fire_department,
-                      '$calories kcal',
+                      l10n.home_kcal('$calories'),
                     ),
                     const Spacer(),
                     if (widget.useSensor)
@@ -549,7 +554,8 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
       ),
-    );
+    ),
+  );
 
     return Semantics(
       label: '${l10n.home_steps}: $_steps of $goal',
@@ -620,7 +626,7 @@ class _HomeScreenState extends State<HomeScreen>
   void _onHydrationTap(BuildContext context) {
     HapticFeedback.lightImpact();
     final increment = widget.hydrationMLPerClick / 1000.0;
-    final newVal = (_hydrationLiters + increment).clamp(0.0, 2.5);
+    final newVal = (_hydrationLiters + increment).clamp(0.0, widget.hydrationGoal);
     widget.onHydrationChanged?.call(newVal);
     if (!_reduceMotion) {
       _hydrationTapController.forward(from: 0.0).then((_) {
@@ -632,19 +638,22 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildHydrationCard(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final blue = AppTheme.hydrationBlue;
-    final card = Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: blue.withValues(alpha: 0.25),
-          width: 1,
+    final progress = widget.hydrationGoal > 0 ? (_hydrationLiters / widget.hydrationGoal).clamp(0.0, 1.0) : 0.0;
+    final card = SizedBox(
+      height: 130,
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: blue.withValues(alpha: 0.25),
+            width: 1,
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Stack(
-          children: [
-            // ── Background layer: decorative large icon ──
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Stack(
+            alignment: AlignmentDirectional.center,
+            children: [
             Center(
               child: Semantics(
                 excludeSemantics: true,
@@ -655,7 +664,6 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
             ),
-            // ── Foreground layer: content ──
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -693,7 +701,7 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Tap to add',
+                        l10n.home_tapToAdd,
                         style: TextStyle(
                           color: AppTheme.textSecondary(context),
                           fontSize: 13,
@@ -704,10 +712,10 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 const SizedBox(width: 10),
                 ProgressRing(
-                  progress: (_hydrationLiters / 2.5).clamp(0.0, 1.0),
+                  progress: progress,
                   centerLabel:
-                      '${((_hydrationLiters / 2.5) * 100).round()}%',
-                  bottomLabel: '2.5L',
+                      '${(progress * 100).round()}%',
+                  bottomLabel: '${widget.hydrationGoal.toStringAsFixed(1)}L',
                   color: blue,
                   size: 50,
                 ),
@@ -716,13 +724,15 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
       ),
-    );
+    ),
+  );
 
     return Semantics(
-      label: '${l10n.home_hydration}: ${_hydrationLiters.toStringAsFixed(1)} liters of 2.5',
+      label: '${l10n.home_hydration}: ${_hydrationLiters.toStringAsFixed(1)} liters of ${widget.hydrationGoal.toStringAsFixed(1)}',
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => _onHydrationTap(context),
+        onLongPress: () => _openHydrationHistory(context),
         child: AnimatedBuilder(
           animation: _hydrationTapController,
           child: card,
@@ -740,6 +750,13 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  void _openHydrationHistory(BuildContext context) {
+    HapticFeedback.lightImpact();
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const HydrationHistoryScreen()),
+    );
+  }
+
   Widget _buildThisWeekSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final days = [
@@ -753,7 +770,17 @@ class _HomeScreenState extends State<HomeScreen>
     ];
 
     final levels = _computeWeeklyLevels();
-    final totalWorkouts = levels.fold<int>(0, (sum, l) => sum + (l > 0 ? 1 : 0));
+    // Count total exercises completed this week across all sessions.
+    final totalExercises = (widget.recentSessions ?? [])
+        .where((s) {
+          final now = widget.clock.now();
+          final weekday = now.weekday;
+          final monday = now.subtract(Duration(days: weekday - 1));
+          final mondayDate = DateTime(monday.year, monday.month, monday.day);
+          final weekEnd = mondayDate.add(const Duration(days: 7));
+          return !s.date.isBefore(mondayDate) && !s.date.isAfter(weekEnd);
+        })
+        .fold<int>(0, (sum, s) => sum + s.exercises.length);
 
     return Semantics(
       label: '${l10n.home_thisWeek} activity chart',
@@ -781,7 +808,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const Spacer(),
                   Text(
-                    '$totalWorkouts workouts',
+                    '$totalExercises ${l10n.home_exercises}',
                     style: TextStyle(
                       color: AppTheme.textTertiary(context),
                       fontSize: 13,
@@ -794,17 +821,20 @@ class _HomeScreenState extends State<HomeScreen>
               AnimatedBuilder(
                 animation: _barsController,
                 builder: (context, _) {
-                  final barAnims = List.generate(7, (i) {
+                  for (int i = 0; i < 7; i++) {
                     final double start = 0.08 + (i * 0.065);
-                    return Tween<double>(begin: 0.0, end: levels[i]).animate(
-                      CurvedAnimation(
-                        parent: _barsController,
-                        curve: Interval(
-                          start,
-                          (start + 0.55).clamp(0.0, 1.0),
-                          curve: AppTheme.kEaseOut,
-                        ),
+                    _cachedBarCurves[i] ??= CurvedAnimation(
+                      parent: _barsController,
+                      curve: Interval(
+                        start,
+                        (start + 0.55).clamp(0.0, 1.0),
+                        curve: AppTheme.kEaseOut,
                       ),
+                    );
+                  }
+                  final barAnims = List.generate(7, (i) {
+                    return Tween<double>(begin: 0.0, end: levels[i]).animate(
+                      _cachedBarCurves[i]!,
                     );
                   });
 
@@ -871,7 +901,7 @@ class _HomeScreenState extends State<HomeScreen>
         currentWeek: widget.currentWeek,
         currentDay: widget.currentDay,
       ).advance();
-      final nextFocus = getFocusForDay(nextProgress.currentWeek, nextProgress.currentDay);
+      final nextFocus = getLocalizedFocus(l10n, nextProgress.currentWeek, nextProgress.currentDay);
 
       return Semantics(
         label: '${l10n.home_todaysWorkout} complete',
@@ -1015,7 +1045,7 @@ class _HomeScreenState extends State<HomeScreen>
                       : '$completed of ${getTodayExercises(widget.currentDay).length} ${l10n.home_exercises} ${l10n.home_completed}',
                   child: Text(
                     isRestDay(widget.currentDay)
-                        ? (_allExercisesDone ? '6/6' : '0/6')
+                        ? (_allExercisesDone ? l10n.home_restDay : '0')
                         : '$completed/${getTodayExercises(widget.currentDay).length}',
                     style: TextStyle(
                       color: AppTheme.textSecondary(context),
@@ -1059,7 +1089,14 @@ class _HomeScreenState extends State<HomeScreen>
                   final uuid = ex.uuid;
                   final wasDone = _completedUuids.contains(uuid);
                   widget.onExerciseToggled?.call(uuid);
-                  if (!wasDone) _startRestTimer(uuid);
+                  if (!wasDone) {
+                    _startRestTimer(uuid);
+                    // Brief pause so user sees the final checkmark before
+                    // auto-completing the workout.
+                    Future.delayed(const Duration(milliseconds: 600), () {
+                      if (mounted) _checkAutoComplete();
+                    });
+                  }
                 },
                 onPlay: () => _onPlayExercise(context, ex),
                 onInfo: () => _showExerciseInfo(context, ex),
@@ -1309,7 +1346,7 @@ class _HomeScreenState extends State<HomeScreen>
   List<double> _computeWeeklyLevels() {
     final sessions = widget.recentSessions;
     if (sessions == null || sessions.isEmpty) {
-      return [0.55, 0.35, 0.65, 0.25, 0.0, 0.9, 0.35];
+      return List.filled(7, 0.0);
     }
 
     final now = widget.clock.now();
@@ -1318,16 +1355,27 @@ class _HomeScreenState extends State<HomeScreen>
     final mondayDate = DateTime(monday.year, monday.month, monday.day);
     final weekEnd = mondayDate.add(const Duration(days: 7));
 
-    final counts = List.filled(7, 0);
+    // Bar height = fraction of exercises completed per day.
+    // Days with no session get 0. A day where all planned exercises were
+    // completed gets 1.0. Partial workouts get proportional height.
+    // Rest days always count as 100% (recovery is progress!).
+    final levels = List.filled(7, 0.0);
     for (final s in sessions) {
       if (s.date.isBefore(mondayDate) || s.date.isAfter(weekEnd)) continue;
       final dayIdx = s.date.weekday - 1; // 0=Mon..6=Sun
-      counts[dayIdx]++;
+      if (isRestDay(s.dayNumber)) {
+        levels[dayIdx] = 1.0;
+      } else {
+        final planned = s.plannedExerciseUuids.length;
+        if (planned == 0) {
+          levels[dayIdx] = 1.0;
+        } else {
+          levels[dayIdx] = (s.exercises.length / planned).clamp(0.0, 1.0);
+        }
+      }
     }
 
-    final maxCount = counts.reduce((a, b) => a > b ? a : b);
-    if (maxCount == 0) return List.filled(7, 0.0);
-    return counts.map((c) => (c / maxCount).clamp(0.0, 1.0)).toList();
+    return levels;
   }
 
   // ── Weight Chart Card ──
@@ -1533,12 +1581,12 @@ class _HomeScreenState extends State<HomeScreen>
 
   String _lastLoggedText(List<WeightEntry> sorted) {
     if (sorted.isEmpty) return '';
+    final l10n = AppLocalizations.of(context);
     final last = sorted.last.date;
     final diff = widget.clock.now().difference(last);
-    if (diff.inDays == 0) return 'Logged today';
-    if (diff.inDays == 1) return 'Logged yesterday';
-    if (diff.inDays < 7) return 'Logged ${diff.inDays} days ago';
-    return 'Logged ${diff.inDays} days ago';
+    if (diff.inDays == 0) return l10n.home_loggedToday;
+    if (diff.inDays == 1) return l10n.home_loggedYesterday;
+    return l10n.home_loggedDaysAgo(diff.inDays);
   }
 
   Widget _buildWeightEmpty(BuildContext context) {
@@ -1567,7 +1615,7 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               const SizedBox(height: 2),
               Text(
-                'Tap to record',
+                l10n.home_tapToRecord,
                 style: TextStyle(
                   color: AppTheme.textTertiary(context),
                   fontSize: 12,

@@ -8,12 +8,20 @@ enum NotificationType {
   recoverySuggestion,
   weeklyProgress,
   weightFollowUp,
+  hydrationReminder,
 }
 
 class NotificationRepository {
   static final NotificationRepository _instance = NotificationRepository._();
   factory NotificationRepository() => _instance;
   NotificationRepository._();
+
+  SharedPreferences? _prefsCache;
+
+  Future<SharedPreferences> get _prefs async {
+    _prefsCache ??= await SharedPreferences.getInstance();
+    return _prefsCache!;
+  }
 
   // ── Keys ──
   static const _masterKey = 'notif_master';
@@ -40,158 +48,162 @@ class NotificationRepository {
   static const _pauseUntilKey = 'notif_pause_until';
   static const _languageKey = 'notif_language';
   static const _useMetricKey = 'notif_use_metric';
+  static const _hydrationReminderKey = 'notif_hydration_reminder';
+  static const _hydrationIntervalMinutesKey = 'notif_hydration_interval_minutes';
+  static const _hydrationStartHourKey = 'notif_hydration_start_hour';
+  static const _hydrationEndHourKey = 'notif_hydration_end_hour';
 
   // ── Master ──
   Future<bool> get isMasterEnabled async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getBool(_masterKey) ?? true;
   }
 
   Future<void> setMasterEnabled(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setBool(_masterKey, value);
   }
 
   // ── Daily Reminder ──
   Future<bool> get isDailyReminderEnabled async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getBool(_dailyReminderKey) ?? true;
   }
 
   Future<void> setDailyReminderEnabled(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setBool(_dailyReminderKey, value);
   }
 
   Future<TimeOfDay> get dailyReminderTime async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     final hour = prefs.getInt(_dailyHourKey) ?? 8;
     final minute = prefs.getInt(_dailyMinuteKey) ?? 0;
     return TimeOfDay(hour: hour, minute: minute);
   }
 
   Future<void> setDailyReminderTime(TimeOfDay time) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setInt(_dailyHourKey, time.hour);
     await prefs.setInt(_dailyMinuteKey, time.minute);
   }
 
   // ── Missed Workout ──
   Future<bool> get isMissedWorkoutEnabled async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getBool(_missedWorkoutKey) ?? false;
   }
 
   Future<void> setMissedWorkoutEnabled(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setBool(_missedWorkoutKey, value);
   }
 
   Future<int> get missedWorkoutDelayHours async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getInt(_missedDelayKey) ?? 2;
   }
 
   Future<void> setMissedWorkoutDelayHours(int hours) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setInt(_missedDelayKey, hours);
   }
 
   // ── Achievement ──
   Future<bool> get isAchievementEnabled async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getBool(_achievementKey) ?? true;
   }
 
   Future<void> setAchievementEnabled(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setBool(_achievementKey, value);
   }
 
   // ── Recovery Suggestion ──
   Future<bool> get isRecoveryEnabled async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getBool(_recoveryKey) ?? true;
   }
 
   Future<void> setRecoveryEnabled(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setBool(_recoveryKey, value);
   }
 
   // ── Weekly Progress ──
   Future<bool> get isWeeklyProgressEnabled async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getBool(_weeklyProgressKey) ?? true;
   }
 
   Future<void> setWeeklyProgressEnabled(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setBool(_weeklyProgressKey, value);
   }
 
   Future<int> get weeklyProgressDay async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getInt(_weeklyDayKey) ?? DateTime.monday;
   }
 
   Future<void> setWeeklyProgressDay(int day) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setInt(_weeklyDayKey, day);
   }
 
   Future<TimeOfDay> get weeklyProgressTime async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     final hour = prefs.getInt(_weeklyHourKey) ?? 10;
     final minute = prefs.getInt(_weeklyMinuteKey) ?? 0;
     return TimeOfDay(hour: hour, minute: minute);
   }
 
   Future<void> setWeeklyProgressTime(TimeOfDay time) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setInt(_weeklyHourKey, time.hour);
     await prefs.setInt(_weeklyMinuteKey, time.minute);
   }
 
   // ── Weight Follow-Up ──
   Future<bool> get isWeightFollowUpEnabled async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getBool(_weightFollowUpKey) ?? false;
   }
 
   Future<void> setWeightFollowUpEnabled(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setBool(_weightFollowUpKey, value);
   }
 
   Future<double> get weightTarget async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getDouble(_weightTargetKey) ?? 75.0;
   }
 
   Future<void> setWeightTarget(double kg) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setDouble(_weightTargetKey, kg);
   }
 
   Future<int> get weightIntervalDays async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getInt(_weightIntervalDaysKey) ?? 3;
   }
 
   Future<void> setWeightIntervalDays(int days) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setInt(_weightIntervalDaysKey, days);
   }
 
   Future<List<int>> get weightReminderDays async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     final raw = prefs.getStringList(_weightReminderDaysKey);
     return raw?.map((e) => int.parse(e)).toList() ?? [DateTime.tuesday, DateTime.saturday];
   }
 
   Future<void> setWeightReminderDays(List<int> days) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setStringList(
       _weightReminderDaysKey,
       days.map((e) => e.toString()).toList(),
@@ -200,17 +212,17 @@ class NotificationRepository {
 
   // ── Quiet Hours ──
   Future<bool> get isQuietHoursEnabled async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getBool(_quietHoursEnabledKey) ?? false;
   }
 
   Future<void> setQuietHoursEnabled(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setBool(_quietHoursEnabledKey, value);
   }
 
   Future<TimeOfDay> get quietHoursStart async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return TimeOfDay(
       hour: prefs.getInt(_quietHoursStartHourKey) ?? 22,
       minute: prefs.getInt(_quietHoursStartMinuteKey) ?? 0,
@@ -218,7 +230,7 @@ class NotificationRepository {
   }
 
   Future<TimeOfDay> get quietHoursEnd async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return TimeOfDay(
       hour: prefs.getInt(_quietHoursEndHourKey) ?? 7,
       minute: prefs.getInt(_quietHoursEndMinuteKey) ?? 0,
@@ -226,7 +238,7 @@ class NotificationRepository {
   }
 
   Future<void> setQuietHours(TimeOfDay start, TimeOfDay end) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setInt(_quietHoursStartHourKey, start.hour);
     await prefs.setInt(_quietHoursStartMinuteKey, start.minute);
     await prefs.setInt(_quietHoursEndHourKey, end.hour);
@@ -235,13 +247,13 @@ class NotificationRepository {
 
   // ── Pause ──
   Future<DateTime?> get pauseUntil async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     final raw = prefs.getString(_pauseUntilKey);
     return raw != null ? DateTime.parse(raw) : null;
   }
 
   Future<void> setPauseUntil(DateTime? value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     if (value != null) {
       await prefs.setString(_pauseUntilKey, value.toIso8601String());
     } else {
@@ -251,29 +263,70 @@ class NotificationRepository {
 
   // ── Language ──
   Future<String> get languageCode async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getString(_languageKey) ?? 'en';
   }
 
   Future<void> setLanguageCode(String code) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setString(_languageKey, code);
   }
 
   // ── Units ──
   Future<bool> get isMetric async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return prefs.getBool(_useMetricKey) ?? true;
   }
 
   Future<void> setMetric(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     await prefs.setBool(_useMetricKey, value);
+  }
+
+  // ── Hydration Reminder ──
+  Future<bool> get isHydrationReminderEnabled async {
+    final prefs = await _prefs;
+    return prefs.getBool(_hydrationReminderKey) ?? true;
+  }
+
+  Future<void> setHydrationReminderEnabled(bool value) async {
+    final prefs = await _prefs;
+    await prefs.setBool(_hydrationReminderKey, value);
+  }
+
+  Future<int> get hydrationIntervalMinutes async {
+    final prefs = await _prefs;
+    return prefs.getInt(_hydrationIntervalMinutesKey) ?? 60;
+  }
+
+  Future<void> setHydrationIntervalMinutes(int minutes) async {
+    final prefs = await _prefs;
+    await prefs.setInt(_hydrationIntervalMinutesKey, minutes);
+  }
+
+  Future<int> get hydrationStartHour async {
+    final prefs = await _prefs;
+    return prefs.getInt(_hydrationStartHourKey) ?? 8;
+  }
+
+  Future<void> setHydrationStartHour(int hour) async {
+    final prefs = await _prefs;
+    await prefs.setInt(_hydrationStartHourKey, hour);
+  }
+
+  Future<int> get hydrationEndHour async {
+    final prefs = await _prefs;
+    return prefs.getInt(_hydrationEndHourKey) ?? 22;
+  }
+
+  Future<void> setHydrationEndHour(int hour) async {
+    final prefs = await _prefs;
+    await prefs.setInt(_hydrationEndHourKey, hour);
   }
 
   // ── Bulk load ──
   Future<Map<String, dynamic>> loadAll() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _prefs;
     return {
       'master': prefs.getBool(_masterKey) ?? true,
       'dailyReminder': prefs.getBool(_dailyReminderKey) ?? true,
@@ -302,6 +355,10 @@ class NotificationRepository {
       'pauseUntil': prefs.getString(_pauseUntilKey),
       'language': prefs.getString(_languageKey) ?? 'en',
       'isMetric': prefs.getBool(_useMetricKey) ?? true,
+      'hydrationReminder': prefs.getBool(_hydrationReminderKey) ?? true,
+      'hydrationIntervalMinutes': prefs.getInt(_hydrationIntervalMinutesKey) ?? 60,
+      'hydrationStartHour': prefs.getInt(_hydrationStartHourKey) ?? 8,
+      'hydrationEndHour': prefs.getInt(_hydrationEndHourKey) ?? 22,
     };
   }
 }

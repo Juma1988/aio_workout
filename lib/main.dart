@@ -9,8 +9,8 @@ import 'core/localization/locale_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'features/achievements/providers/achievement_provider.dart';
 import 'features/achievements/services/shared_prefs_achievement_storage.dart';
-import 'features/navigation/main_shell.dart';
 import 'features/notifications/services/notification_service.dart';
+import 'features/splash/splash_screen.dart';
 import 'services/workout_storage_service.dart';
 
 Future<void> main() async {
@@ -117,7 +117,7 @@ class _MainAppState extends State<MainApp> {
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: _themeMode,
-            home: MainShell(
+            home: SplashScreen(
               onThemeToggle: _toggleTheme,
             ),
           );

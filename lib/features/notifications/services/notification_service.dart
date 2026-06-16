@@ -3,6 +3,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'notification_repository.dart';
+import '../../profile/home_settings_dialog.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._();
@@ -28,6 +29,7 @@ class NotificationService {
   static const _weightFollowUpId = 1005;
   static const _restTimerCompleteId = 2000;
   static const _testNotificationId = 9999;
+  static const _hydrationReminderBaseId = 3000;
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -358,6 +360,63 @@ class NotificationService {
     );
   }
 
+  // ── Schedule: Hydration Reminders ──
+  Future<void> scheduleHydrationReminders() async {
+    if (await _shouldSuppress()) return;
+    if (!await _repo.isHydrationReminderEnabled) return;
+
+    await _ensureChannels();
+    
+    // Cancel existing hydration reminders
+    for (int i = 0; i < 12; i++) {
+      await _cancelNotificationById(_hydrationReminderBaseId + i);
+    }
+
+    final intervalMinutes = await _repo.hydrationIntervalMinutes;
+    final startHour = await _repo.hydrationStartHour;
+    final endHour = await _repo.hydrationEndHour;
+    final hydrationGoal = await loadHydrationTarget();
+    
+    final now = DateTime.now();
+    var fireTime = DateTime(now.year, now.month, now.day, startHour, 0);
+    int notifIndex = 0;
+    
+    while (fireTime.hour < endHour && notifIndex < 12) {
+      if (fireTime.isAfter(now)) {
+        // Calculate dynamic message based on target and interval
+        final wakingHours = endHour > startHour ? endHour - startHour : 24 - startHour + endHour;
+        final remindersPerDay = (wakingHours * 60 / intervalMinutes).floor();
+        final amountPerReminder = remindersPerDay > 0 ? (hydrationGoal / remindersPerDay * 1000).round() : 0;
+        
+        final message = 'Time to hydrate! Drink ~${amountPerReminder}mL to stay on track 💧';
+        
+        await _plugin.zonedSchedule(
+          _hydrationReminderBaseId + notifIndex,
+          'Hydration Reminder',
+          message,
+          tz.TZDateTime.from(fireTime, tz.local),
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              _defaultChannel,
+              'Workout Reminders',
+              importance: Importance.high,
+            ),
+            iOS: DarwinNotificationDetails(
+              presentAlert: true,
+              presentBadge: true,
+              presentSound: true,
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+        notifIndex++;
+      }
+      fireTime = fireTime.add(Duration(minutes: intervalMinutes));
+    }
+  }
+
   // ── Rest Timer (single completion notification) ──
   Future<void> scheduleRestTimerComplete(int secondsRemaining) async {
     await _ensureChannels();
@@ -430,5 +489,6 @@ class NotificationService {
     if (!await _repo.isMasterEnabled) return;
     await scheduleDailyReminder();
     await scheduleWeeklyProgress();
+    await scheduleHydrationReminders();
   }
 }

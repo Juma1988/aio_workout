@@ -132,6 +132,19 @@ class WorkoutStorageService {
     }
   }
 
+  /// Loads saved completed exercise UUIDs from storage without checking
+  /// the date key. Used at day-boundary to preserve partial workouts.
+  Future<Set<String>> loadRawCompletedUuids() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList(_todayUuidsKey);
+      return raw?.toSet() ?? {};
+    } catch (e) {
+      debugPrint('loadRawCompletedUuids error: $e');
+      return {};
+    }
+  }
+
   Future<void> saveTodayState({
     required int steps,
     required double hydration,
@@ -290,6 +303,7 @@ class WorkoutStorageService {
       await prefs.setString(_programKey, jsonEncode({
         'currentWeek': 3,
         'currentDay': 2,
+        'lastAdvanceDate': _todayKey,
       }));
 
       // ── Today's state ──

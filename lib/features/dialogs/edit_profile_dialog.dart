@@ -124,6 +124,10 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   Future<void> _loadProfile() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+    _nameController.removeListener(_onFieldChanged);
+    _emailController.removeListener(_onFieldChanged);
+    _weightController.removeListener(_onFieldChanged);
+    _heightController.removeListener(_onFieldChanged);
     setState(() {
       _name = prefs.getString(_nameKey);
       _email = prefs.getString(_emailKey);
@@ -142,7 +146,12 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
       _dobController.text = _dateOfBirth != null
           ? DateFormat.yMMMd().format(_dateOfBirth!)
           : '';
+      _isDirty = false;
     });
+    _nameController.addListener(_onFieldChanged);
+    _emailController.addListener(_onFieldChanged);
+    _weightController.addListener(_onFieldChanged);
+    _heightController.addListener(_onFieldChanged);
   }
 
   Future<void> _saveProfile() async {

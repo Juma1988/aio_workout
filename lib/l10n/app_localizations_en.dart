@@ -264,6 +264,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profile_logUpdates => 'Log & Updates';
 
   @override
+  String get profile_tips => 'Tips & Tricks';
+
+  @override
   String get profile_resetTitle => 'Reset Progress';
 
   @override
@@ -1353,4 +1356,388 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dialog_current => 'Current';
+
+  @override
+  String get notif_hydrationReminder => 'Hydration Reminder';
+
+  @override
+  String get notif_hydrationReminderSub =>
+      'Get reminded to drink water throughout the day';
+
+  @override
+  String get notif_hydrationReminderConfigTitle => 'Hydration Reminder';
+
+  @override
+  String get notif_hydrationReminderConfigBody =>
+      'Configure your hydration reminder settings';
+
+  @override
+  String get notif_hydrationEnable => 'Enable Hydration Reminder';
+
+  @override
+  String get notif_hydrationEnableSub =>
+      'Receive periodic reminders to stay hydrated';
+
+  @override
+  String get notif_hydrationInterval => 'Reminder Interval';
+
+  @override
+  String get notif_hydrationActiveHours => 'Active Hours';
+
+  @override
+  String get notif_hydrationRemindersPerDay => 'Reminders per day';
+
+  @override
+  String get notif_hydrationAmountPerReminder => 'Amount per reminder';
+
+  @override
+  String notif_hydrationBasedOnGoal(String goal) {
+    return 'Based on your ${goal}L daily goal';
+  }
+
+  @override
+  String notif_hydrationMessage(int amount) {
+    return 'Time to hydrate! Drink ~${amount}mL to stay on track 💧';
+  }
+
+  @override
+  String get notif_enableAchievement => 'Enable Achievement Notifications';
+
+  @override
+  String get notif_enableAchievementSub =>
+      'Get notified when you unlock a new achievement';
+
+  @override
+  String get notif_enableRecovery => 'Enable Recovery Suggestions';
+
+  @override
+  String get notif_enableRecoverySub =>
+      'Get reminded to take rest days after consecutive workouts';
+
+  @override
+  String get notif_enableQuietHours => 'Enable Quiet Hours';
+
+  @override
+  String get notif_chooseStartTime => 'Choose start time';
+
+  @override
+  String get notif_chooseEndTime => 'Choose end time';
+
+  @override
+  String get notif_enableDailyReminder => 'Enable Daily Reminder';
+
+  @override
+  String get notif_enableDailyReminderSub =>
+      'Receive a daily reminder to complete your workout';
+
+  @override
+  String get notif_enableMissedWorkout => 'Enable Missed Workout Reminder';
+
+  @override
+  String get notif_enableMissedWorkoutSub =>
+      'Get a nudge when you miss a workout';
+
+  @override
+  String get notif_hour => 'hour';
+
+  @override
+  String get notif_hours => 'hours';
+
+  @override
+  String get notif_day => 'day';
+
+  @override
+  String get notif_confirmTurnOff => 'Turn off all notifications?';
+
+  @override
+  String get notif_confirmTurnOffBody =>
+      'You won\'t receive any workout reminders, achievements, or progress updates.';
+
+  @override
+  String get notif_keepEnabled => 'Keep On';
+
+  @override
+  String get notif_turnOff => 'Turn Off';
+
+  @override
+  String notif_nextScheduled(String time) {
+    return 'Next: $time';
+  }
+
+  @override
+  String get notif_weekdayMonday => 'Monday';
+
+  @override
+  String get notif_weekdayTuesday => 'Tuesday';
+
+  @override
+  String get notif_weekdayWednesday => 'Wednesday';
+
+  @override
+  String get notif_weekdayThursday => 'Thursday';
+
+  @override
+  String get notif_weekdayFriday => 'Friday';
+
+  @override
+  String get notif_weekdaySaturday => 'Saturday';
+
+  @override
+  String get notif_weekdaySunday => 'Sunday';
+
+  @override
+  String get notif_chooseDay => 'Choose day';
+
+  @override
+  String get notif_notificationTime => 'Notification time';
+
+  @override
+  String get notif_slideToSetWeight => 'Slide to set your target weight';
+
+  @override
+  String get notif_weightGoalQuestion => 'What weight are you working toward?';
+
+  @override
+  String get notif_frequencyQuestion =>
+      'How often to ask you to log your weight';
+
+  @override
+  String get notif_everyDay => 'Every day';
+
+  @override
+  String get notif_weekly => 'Weekly';
+
+  @override
+  String get notif_every2Weeks => 'Every 2 weeks';
+
+  @override
+  String notif_everyNDays(int days) {
+    return 'Every $days days';
+  }
+
+  @override
+  String get notif_kilograms => 'Kilograms';
+
+  @override
+  String get notif_pounds => 'Pounds';
+
+  @override
+  String get helpFeedback_title => 'Help & Feedback';
+
+  @override
+  String get helpFeedback_helpTab => 'Help';
+
+  @override
+  String get helpFeedback_feedbackTab => 'Feedback';
+
+  @override
+  String get helpFeedback_faq => 'Frequently Asked Questions';
+
+  @override
+  String get helpFeedback_faqSubtitle => 'Quick answers to common questions';
+
+  @override
+  String get helpFeedback_quickLinks => 'Quick Links';
+
+  @override
+  String home_kGoal(int count) {
+    return '${count}k goal';
+  }
+
+  @override
+  String home_kLabel(int count) {
+    return '${count}k';
+  }
+
+  @override
+  String home_km(String distance) {
+    return '$distance km';
+  }
+
+  @override
+  String home_kcal(String calories) {
+    return '$calories kcal';
+  }
+
+  @override
+  String get home_tapToAdd => 'Tap to add';
+
+  @override
+  String get home_tapToRecord => 'Tap to record';
+
+  @override
+  String get home_loggedToday => 'Logged today';
+
+  @override
+  String get home_loggedYesterday => 'Logged yesterday';
+
+  @override
+  String home_loggedDaysAgo(int count) {
+    return '$count days ago';
+  }
+
+  @override
+  String home_workoutsCount(int count) {
+    return '$count workouts';
+  }
+
+  @override
+  String get helpFeedback_exerciseGuide => 'Exercise Guide';
+
+  @override
+  String get helpFeedback_exerciseGuideDesc =>
+      'Browse exercises with form tips and videos';
+
+  @override
+  String get helpFeedback_changelog => 'What\'s New';
+
+  @override
+  String get helpFeedback_changelogDesc =>
+      'See the latest updates and improvements';
+
+  @override
+  String get helpFeedback_notificationTips => 'Notification Tips';
+
+  @override
+  String get helpFeedback_notificationTipsDesc =>
+      'Configure reminders to stay on track';
+
+  @override
+  String get helpFeedback_tips => 'Tips & Tricks';
+
+  @override
+  String get helpFeedback_tipsDesc =>
+      'Science-backed advice for your fitness journey';
+
+  @override
+  String get helpFeedback_category => 'Category';
+
+  @override
+  String get helpFeedback_bugReport => 'Bug Report';
+
+  @override
+  String get helpFeedback_featureRequest => 'Feature Request';
+
+  @override
+  String get helpFeedback_generalFeedback => 'General Feedback';
+
+  @override
+  String get helpFeedback_question => 'Question';
+
+  @override
+  String get helpFeedback_name => 'Name';
+
+  @override
+  String get helpFeedback_nameHint => 'Your name';
+
+  @override
+  String get helpFeedback_email => 'Email';
+
+  @override
+  String get helpFeedback_emailHint => 'your@email.com';
+
+  @override
+  String get helpFeedback_subject => 'Subject';
+
+  @override
+  String get helpFeedback_subjectHint => 'Brief summary';
+
+  @override
+  String get helpFeedback_message => 'Message';
+
+  @override
+  String get helpFeedback_messageHint => 'Tell us what you think…';
+
+  @override
+  String get helpFeedback_sendViaWhatsapp => 'Send via WhatsApp';
+
+  @override
+  String get helpFeedback_sending => 'Opening WhatsApp…';
+
+  @override
+  String get helpFeedback_success =>
+      'Draft opened in WhatsApp! Thanks for helping us improve.';
+
+  @override
+  String get helpFeedback_required => 'Required';
+
+  @override
+  String helpFeedback_minLength(Object count) {
+    return 'Minimum $count characters';
+  }
+
+  @override
+  String get helpFeedback_enterValidEmail => 'Enter a valid email';
+
+  @override
+  String get helpFeedback_attachScreenshot => 'Attach Screenshot';
+
+  @override
+  String get helpFeedback_removeScreenshot => 'Remove';
+
+  @override
+  String get helpFeedback_openInWhatsapp => 'Open in WhatsApp';
+
+  @override
+  String get helpFeedback_whatsappFailed =>
+      'Could not open WhatsApp. Please try again.';
+
+  @override
+  String get helpFeedback_openLink => 'Open link';
+
+  @override
+  String get faq_howToLogWorkouts => 'How do I log workouts?';
+
+  @override
+  String get faq_howToLogWorkoutsAnswer =>
+      'Go to the Home screen and tap \"Start Workout\" on today\'s workout card. Complete exercises by tapping each set, and finish with \"Complete Workout\".';
+
+  @override
+  String get faq_howToTrackSteps => 'How do I track my steps?';
+
+  @override
+  String get faq_howToTrackStepsAnswer =>
+      'Steps are tracked automatically if your device has a sensor. You can also tap the Steps card on the Home screen to manually add steps.';
+
+  @override
+  String get faq_howToLogWater => 'How do I log water intake?';
+
+  @override
+  String get faq_howToLogWaterAnswer =>
+      'Tap the Hydration card on the Home screen to add water. Each tap adds one glass (250 ml). You can also set a daily goal in Notifications.';
+
+  @override
+  String get faq_howAchievementsWork => 'How do achievements work?';
+
+  @override
+  String get faq_howAchievementsWorkAnswer =>
+      'Achievements unlock automatically as you hit milestones — completing workouts, logging steps, drinking water, etc. Check your progress on the Achievements card.';
+
+  @override
+  String get faq_howToChangePlan => 'How do I change my workout plan?';
+
+  @override
+  String get faq_howToChangePlanAnswer =>
+      'Go to Profile → Workout Plan to choose a different week-day combination. Your progress will be preserved.';
+
+  @override
+  String get faq_howToSetGoals => 'How do I set step and hydration goals?';
+
+  @override
+  String get faq_howToSetGoalsAnswer =>
+      'Tap the Steps or Hydration card on the Home screen, then long-press to adjust your daily targets.';
+
+  @override
+  String get faq_howNotificationsWork => 'How do notifications work?';
+
+  @override
+  String get faq_howNotificationsWorkAnswer =>
+      'Go to Profile → Notifications to enable daily reminders, missed workout nudges, achievement alerts, and hydration reminders with custom schedules.';
+
+  @override
+  String get faq_howToLogWeight => 'How do I log my weight?';
+
+  @override
+  String get faq_howToLogWeightAnswer =>
+      'On the Home screen, tap \"Log Weight\" in the Weight section to record your current weight and track progress toward your goal.';
 }

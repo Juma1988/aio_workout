@@ -28,6 +28,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant HistoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Key changed (e.g. day rollover bumped _historyRefreshCounter) → reload.
+    if (widget.key != oldWidget.key) {
+      _load();
+    }
+  }
+
   Future<void> _load() async {
     final service = WorkoutStorageService();
     final sessions = await service.loadSessions();
@@ -131,6 +140,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       grouped.putIfAbsent(s.weekNumber, () => []);
       grouped[s.weekNumber]!.add(s);
     }
+    // Always include the current progress week so users see where they are.
+    grouped.putIfAbsent(_progress.currentWeek, () => []);
     final weeks = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return ListView.builder(
@@ -143,6 +154,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
         return _WeekCard(
           week: week,
           sessions: weekSessions,
+          isCurrentWeek: week == _progress.currentWeek,
+          currentDay: _progress.currentDay,
           onSessionTap: (s) => _showSessionDetail(context, s),
         );
       },
@@ -398,11 +411,15 @@ class _WeekCard extends StatefulWidget {
   final int week;
   final List<WorkoutSession> sessions;
   final void Function(WorkoutSession) onSessionTap;
+  final bool isCurrentWeek;
+  final int currentDay;
 
   const _WeekCard({
     required this.week,
     required this.sessions,
     required this.onSessionTap,
+    this.isCurrentWeek = false,
+    this.currentDay = 1,
   });
 
   @override
@@ -526,14 +543,15 @@ class _WeekCardState extends State<_WeekCard> {
           final day = i + 1;
           final session = sessionDays[day];
           final rest = isRestDay(day);
+          final isToday = widget.isCurrentWeek && day == widget.currentDay;
 
           if (rest) {
-            return _buildRestDayTile(context, day);
+            return _buildRestDayTile(context, day, isToday: isToday);
           }
           if (session != null) {
             return _buildSessionTile(context, session);
           }
-          return _buildEmptyDayTile(context, day, widget.week);
+          return _buildEmptyDayTile(context, day, widget.week, isToday: isToday);
         }),
       ),
     );
@@ -609,7 +627,7 @@ class _WeekCardState extends State<_WeekCard> {
     );
   }
 
-  Widget _buildEmptyDayTile(BuildContext context, int day, int week) {
+  Widget _buildEmptyDayTile(BuildContext context, int day, int week, {bool isToday = false}) {
     final focus = getFocusForDay(week, day);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -617,21 +635,24 @@ class _WeekCardState extends State<_WeekCard> {
         padding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: AppTheme.subtleFill(context, 0.02),
+          color: isToday
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.06)
+              : AppTheme.subtleFill(context, 0.02),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: AppTheme.subtleFill(context, 0.06),
-            width: 1,
-          ),
+          border: isToday
+              ? Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3), width: 1)
+              : Border.all(color: AppTheme.subtleFill(context, 0.06), width: 1),
         ),
         child: Row(
           children: [
             Opacity(
               opacity: 0.3,
               child: Icon(
-                Icons.radio_button_unchecked,
-                size: 20,
-                color: AppTheme.textSecondary(context),
+                isToday ? Icons.circle : Icons.radio_button_unchecked,
+                size: isToday ? 10 : 20,
+                color: isToday
+                    ? Theme.of(context).colorScheme.primary
+                    : AppTheme.textSecondary(context),
               ),
             ),
             const SizedBox(width: 10),
@@ -640,7 +661,9 @@ class _WeekCardState extends State<_WeekCard> {
               height: 28,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: AppTheme.subtleFill(context, 0.04),
+                color: isToday
+                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+                    : AppTheme.subtleFill(context, 0.04),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -648,7 +671,9 @@ class _WeekCardState extends State<_WeekCard> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textDisabled(context),
+                  color: isToday
+                      ? Theme.of(context).colorScheme.primary
+                      : AppTheme.textDisabled(context),
                 ),
               ),
             ),
@@ -657,8 +682,11 @@ class _WeekCardState extends State<_WeekCard> {
               child: Text(
                 focus,
                 style: TextStyle(
-                  color: AppTheme.textDisabled(context),
+                  color: isToday
+                      ? Theme.of(context).colorScheme.primary
+                      : AppTheme.textDisabled(context),
                   fontSize: 14,
+                  fontWeight: isToday ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ),
@@ -668,7 +696,7 @@ class _WeekCardState extends State<_WeekCard> {
     );
   }
 
-  Widget _buildRestDayTile(BuildContext context, int day) {
+  Widget _buildRestDayTile(BuildContext context, int day, {bool isToday = false}) {
     final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -676,15 +704,22 @@ class _WeekCardState extends State<_WeekCard> {
         padding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: AppTheme.subtleFill(context, 0.02),
+          color: isToday
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.06)
+              : AppTheme.subtleFill(context, 0.02),
           borderRadius: BorderRadius.circular(10),
+          border: isToday
+              ? Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3), width: 1)
+              : null,
         ),
         child: Row(
           children: [
             Icon(
               Icons.nightlight_round,
               size: 18,
-              color: AppTheme.textDisabled(context),
+              color: isToday
+                  ? Theme.of(context).colorScheme.primary
+                  : AppTheme.textDisabled(context),
             ),
             const SizedBox(width: 10),
             Container(
@@ -692,7 +727,9 @@ class _WeekCardState extends State<_WeekCard> {
               height: 28,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: AppTheme.subtleFill(context, 0.04),
+                color: isToday
+                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+                    : AppTheme.subtleFill(context, 0.04),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -700,7 +737,9 @@ class _WeekCardState extends State<_WeekCard> {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textDisabled(context),
+                  color: isToday
+                      ? Theme.of(context).colorScheme.primary
+                      : AppTheme.textDisabled(context),
                 ),
               ),
             ),
@@ -708,7 +747,9 @@ class _WeekCardState extends State<_WeekCard> {
             Text(
               l10n.home_restDay,
               style: TextStyle(
-                color: AppTheme.textTertiary(context),
+                color: isToday
+                    ? Theme.of(context).colorScheme.primary
+                    : AppTheme.textTertiary(context),
                 fontSize: 14,
                 fontStyle: FontStyle.italic,
               ),

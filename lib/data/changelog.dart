@@ -19,6 +19,122 @@ class UpdateEntry {
 /// Source of truth: `The Plan.md` file at the project root.
 /// Whenever you add here, add the same entry to The Plan.md too.
 final changelog = <UpdateEntry>[
+  // ── 2026-06-16: Day-Rollover & Exercise Tracking Overhaul ──
+  UpdateEntry(
+    date: DateTime(2026, 6, 16),
+    title: 'Day-Rollover Fix + Exercise Tracking Overhaul',
+    description:
+        'Fixed the day-rollover bug where progress advanced on workout completion '
+        'instead of midnight. Program progress now advances at 00:00 using a new '
+        'lastAdvanceDate field — multi-day catch-up on cold start works correctly. '
+        'Partial workouts are now saved to History at midnight instead of being lost. '
+        'History always shows your current week with today highlighted in your '
+        'theme color. Exercise checkboxes auto-complete the workout (600ms delay). '
+        'This Week chart now scales bar height by exercise completion ratio — '
+        'partial workouts show proportional progress, rest days show 100%. '
+        'Added duplicate-exercise guard to prevent off-by-one count errors.',
+  ),
+
+  // ── 2026-06-16: Help & Feedback, Home Layout Fix, Full Audit ──
+  UpdateEntry(
+    date: DateTime(2026, 6, 16),
+    title: 'Help & Feedback + Home Fix + Audit Sweep',
+    description:
+        'New Help & Feedback screen (FAQ + WhatsApp feedback form) wired from '
+        'Profile. Fixed home layout: CrossAxisAlignment.stretch for full-width '
+        'cards, SizedBox(height:130) for Steps/Hydration, consistent 14px padding. '
+        'Audit fixes: localized focus names, celebration dialog, fake weekly data '
+        'replaced with zeros, white CircularProgressIndicator for light theme, '
+        'Stack alignment on metric cards, localized rest-day label, max-width '
+        'constraints on Profile/Help screens, keyboard dismiss + TextInputAction.next '
+        'in feedback form, WhatsApp fallback link, removed unused isSoon param, '
+        'cached CurvedAnimation instances in This Week chart, empty profile defaults, '
+        'and 10+ new l10n strings (EN + AR).',
+  ),
+
+  // ── 2026-06-15: Tips & Tricks + Splash Screen ──
+  UpdateEntry(
+    date: DateTime(2026, 6, 15),
+    title: 'Tips & Tricks + Splash Screen',
+    description:
+        'Added a Tips & Tricks section under Profile → Support with 30 '
+        'science-backed tips across 6 categories (Water, Steps, Rest, Workouts, '
+        'Nutrition, Motivation) in a collapsible accordion dialog. A new splash '
+        'screen now greets you on app launch, showing a random tip under the '
+        'app icon — learn something new every time you open the app.',
+  ),
+
+  // ── 2026-06-15: Hydration System ──
+  UpdateEntry(
+    date: DateTime(2026, 6, 15),
+    title: 'Hydration Tracking System',
+    description:
+        'A complete hydration system on the home screen, matching the steps UX: '
+        'long-press to open Hydration History screen with week/month chart views, '
+        'quick-add buttons (+0.25L, +0.5L, +1.0L) on the card, streak indicator '
+        'showing consecutive goal-met days, trend vs yesterday, and multi-entry '
+        'per-day tracking with drink source types (Water, Tea, Coffee, Juice, etc.). '
+        'Every drink is persisted individually with timestamps for accurate history.',
+  ),
+
+  // ── 2026-06-14: Notification Settings Overhaul ──
+  UpdateEntry(
+    date: DateTime(2026, 6, 14),
+    title: 'Notification Settings Overhaul',
+    description:
+        'Major cleanup of Profile → Notifications: (1) Full localization — all 50+ '
+        'hardcoded English strings replaced with ARB keys (EN + AR). (2) Deleted 4 '
+        'dead widget files (844 lines). (3) Added loading spinner while settings load. '
+        '(4) Error handling with try-catch on all async operations. (5) "Send Test '
+        'Notification" button to verify setup. (6) Achievement & Recovery converted '
+        'from full bottom sheets to inline switches. (7) Fixed hydration math bug '
+        '(was calculating sleeping hours instead of active hours). (8) Master toggle '
+        'OFF now shows confirmation dialog. (9) SharedPreferences calls cached '
+        '(60+ reads → 1). (10) Quiet hours sheet header standardized to match '
+        'other sheets.',
+  ),
+  UpdateEntry(
+    date: DateTime(2026, 6, 14),
+    title: 'Notification Cards: Toggle + Settings Pattern',
+    description:
+        'Redesigned notification card interaction: toggle switch for quick on/off, '
+        'chevron indicator (>) on cards that have settings, tap card body to open '
+        'settings sheet. Toggle no longer auto-opens settings — users choose when '
+        'to configure. Matches iOS/Android Settings app mental model.',
+  ),
+  UpdateEntry(
+    date: DateTime(2026, 6, 14),
+    title: 'Notification Settings: Bottom Sheets → Dialogs',
+    description:
+        'Converted all 6 notification settings bottom sheets to centered Dialog '
+        'widgets with ScrollView to prevent overflow on smaller screens. Removed '
+        'toggle switches from cards — cards now show ON badge + chevron, tap opens '
+        'settings dialog. Toggle lives only inside the dialog.',
+  ),
+
+  // ── 2026-06-14: Profile > Appearance Feature ──
+  UpdateEntry(
+    date: DateTime(2026, 6, 14),
+    title: 'Profile > Appearance: Steps & Hydration Goals',
+    description:
+        'Three new features under Profile → Appearance: (1) Steps target — edit your '
+        'daily step goal via long-press on the gear icon. (2) Hydration target — '
+        'auto-calculate from body weight (weight × 0.035) or set manually. '
+        '(3) Hydration reminder — configurable periodic reminders with dynamic '
+        'amount calculation based on your daily goal and reminder interval.',
+  ),
+
+  // ── 2026-06-14: Steps Sensor ──
+  UpdateEntry(
+    date: DateTime(2026, 6, 14),
+    title: 'Steps Sensor Integration',
+    description:
+        'Step counting now reads directly from the device hardware sensor via '
+        'platform channels. Tracks a baseline on start and calculates daily steps '
+        'automatically. Includes manual mode fallback for devices without a sensor. '
+        'Special thanks to Okasha Saber for contributing this feature!',
+  ),
+
   // ── 2026-06-11: Exercise Library Premium Redesign ──
   UpdateEntry(
     date: DateTime(2026, 6, 11),

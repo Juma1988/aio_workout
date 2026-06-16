@@ -1,8 +1,451 @@
 # The Plan — AIO Workout
 
+## 🎨 Profiel > Appearance Feature (2026-06-14)
+
+### Overview
+Three new features under Profile → Appearance:
+1. **Steps Target** — Editable daily step goal via long-press on gear icon ✅
+2. **Hydration Target** — Auto-calculate from weight (weight_kg × 0.035) or manual input ✅
+3. **Hydration Reminder** — Dynamic reminder based on interval and quiet hours ✅
+
+### Feature 1: Steps Target ✅
+- **Access:** Long-press gear icon in Steps row under Appearance
+- **Storage:** `steps_daily_goal` (SharedPreferences, default 10000)
+- **UI:** Reuse existing `StepGoalDialog` pattern (slider + text field)
+- **Range:** 1,000 – 50,000 steps (step by 500)
+- **Files modified:**
+  - `lib/features/profile/home_settings_dialog.dart` — Added long-press handler + state management
+  - `lib/features/dialogs/step_goal_dialog.dart` — Reused existing dialog
+
+### Feature 2: Hydration Target ✅
+- **Access:** Long-press gear icon in Hydration row under Appearance
+- **Storage:**
+  - `hydration_target_liters` (double, default 2.5)
+  - `hydration_auto_calc` (bool, default true)
+- **Auto-calculation:** weight_kg × 0.035, rounded to 0.25L
+- **Fallback:** Default to 70kg (2.45L) with "Set weight in Profile" hint
+- **Range:** 1.0L – 5.0L (manual input)
+- **Files modified/created:**
+  - `lib/features/profile/home_settings_dialog.dart` — Added long-press handler + storage functions
+  - `lib/features/dialogs/hydration_goal_dialog.dart` — NEW: Auto/manual toggle with dynamic calculation
+  - `lib/features/home/home_screen.dart` — Replaced hardcoded 2.5L with dynamic goal
+  - `lib/features/navigation/main_shell.dart` — Added hydration goal state + loading
+
+### Feature 3: Hydration Reminder ✅
+- **Access:** Notification Settings → Hydration Reminder card
+- **Storage:**
+  - `notif_hydration_reminder` (bool, default true)
+  - `notif_hydration_interval_minutes` (int, default 60)
+  - `notif_hydration_start_hour` (int, default 8)
+  - `notif_hydration_end_hour` (int, default 22)
+- **Dynamic calculation:**
+  ```
+  Waking hours = 24h - Quiet hours
+  Reminders = Waking hours / Interval
+  Amount per reminder = Target / Reminders
+  ```
+- **Behavior:** Suppress if daily target is met
+- **Message:** Predefined dynamic message with amount per reminder
+- **Files created/modified:**
+  - `lib/features/notifications/widgets/hydration_reminder_dialog.dart` — NEW: Config UI with interval picker
+  - `lib/features/notifications/notification_settings_screen.dart` — Added hydration reminder card
+  - `lib/features/notifications/services/notification_service.dart` — Added hydration scheduling
+  - `lib/features/notifications/services/notification_repository.dart` — Added hydration prefs
+
+### Localization ✅
+- Added English + Arabic strings for all new UI elements
+- Files: `lib/l10n/app_en.arb`, `app_ar.arb`
+
+### Implementation Summary
+All three features are now implemented and working:
+- Steps target can be edited via long-press on gear icon in Appearance
+- Hydration target supports auto-calculation from weight or manual input
+- Hydration reminder with dynamic interval-based calculations
+- All strings localized in English and Arabic
+- No critical errors in codebase (only pre-existing warnings)
+
+---
+
+## ✅ Steps Sensor Feature — Thanks to Okasha Saber 🙏
+
+#### 2026-06-14: Steps Sensor Integration
+- `lib/services/step_counter_service.dart` — reads device hardware step counter sensor via platform channels (`MethodChannel` / `EventChannel`)
+- Tracks baseline on start, calculates today's steps as `sensor_steps - baseline`
+- Manual mode fallback: `addManualSteps()` / `setTodaySteps()` for users without sensor
+- Local persistence via `StepHistoryStorage` (SharedPreferences)
+- Backend: `backend/app/services/step_service.py` + API endpoints in `backend/app/api/v1/steps.py`
+- **Special thanks to Okasha Saber for contributing the steps sensor implementation** 🎉
+
+---
+
+## 🔔 Profile > Notifications — Full Audit & Fix Plan (2026-06-14)
+
+### N-New: Toggle + Settings Pattern ✅
+**Problem:** Toggle auto-opening settings sheet violated mental model — toggle should only toggle, not navigate.
+**Fix:** Added `hasSettings` param to `NotificationCard`. Cards with settings show chevron `>` between content and toggle. Toggle is pure on/off. Card body tap opens settings. 4 agents (Mobile, UI, UX, Frontend) all recommended this pattern.
+**Files modified:**
+- `widgets/notification_card.dart` — added `hasSettings` param, chevron indicator
+- `notification_settings_screen.dart` — removed auto-open from all `onToggle` handlers, added `hasSettings: true` to 6 configurable cards
+**Effort:** 15 minutes
+
+### N-New: Bottom Sheets → Dialogs ✅
+**Problem:** Bottom sheets overflowed on some devices (MissedWorkout, QuietHours). Bottom sheets are inconsistent with Material Design 3 guidelines for settings.
+**Fix:** Converted all 6 notification settings bottom sheets to centered Dialog widgets with `SingleChildScrollView` to prevent overflow. Removed toggle from cards entirely — cards now show ON badge + chevron + tap to open dialog.
+**Files created:**
+- `widgets/daily_reminder_dialog.dart` — NEW
+- `widgets/missed_workout_dialog.dart` — NEW
+- `widgets/achievement_dialog.dart` — NEW
+- `widgets/recovery_dialog.dart` — NEW
+- `widgets/hydration_reminder_dialog.dart` — NEW
+- `widgets/quiet_hours_dialog.dart` — NEW
+**Files deleted:**
+- `widgets/daily_reminder_sheet.dart`
+- `widgets/missed_workout_sheet.dart`
+- `widgets/achievement_sheet.dart`
+- `widgets/recovery_sheet.dart`
+- `widgets/hydration_reminder_sheet.dart`
+- `widgets/quiet_hours_sheet.dart`
+**Effort:** 30 minutes
+
+### Overview
+Six specialized agents (Mobile App Builder, UI Design, UX Design, App Builder, Backend Architect, Frontend Developer) reviewed every screen reachable from Profile → Notifications. Overall average rating: **5.6/10**.
+
+### Navigation Flow (10 screens total)
+```
+Profile → NotificationSettingsScreen
+  ├─ Dialogs (6):
+  │   ├─ DailyReminderDialog (toggle + time picker)
+  │   ├─ MissedWorkoutDialog (toggle + delay hours)
+  │   ├─ AchievementDialog (toggle only)
+  │   ├─ RecoveryDialog (toggle only)
+  │   ├─ HydrationReminderDialog (toggle + interval/start/end + goal)
+  │   └─ QuietHoursDialog (toggle + start/end time)
+  └─ Full-Screen Pages (2):
+      ├─ WeeklyProgressConfigScreen (day + time picker)
+      └─ WeightFollowUpConfigScreen (interval + target + days)
+```
+
+---
+
+### 🔴 Phase 1: Critical Fixes (P0) — Must Do
+
+#### N1. Fix Localization — 50+ Hardcoded English Strings ✅
+**Problem:** HydrationReminderSheet has ZERO l10n usage. QuietHoursSheet, AchievementSheet, RecoverySheet, MissedWorkoutSheet, DailyReminderSheet all have hardcoded English. Notification push bodies are English-only.
+**Fix:** Added 30+ new ARB keys to both `app_en.arb` and `app_ar.arb`. Updated all 6 dialog files to use l10n keys. Fixed QuietHoursDialog header to use 56x56 icon container pattern.
+**Files modified:**
+- `lib/l10n/app_en.arb` — added 30+ notification keys
+- `lib/l10n/app_ar.arb` — added 30+ notification keys (Arabic translations)
+- `widgets/hydration_reminder_dialog.dart` — all 15 strings localized
+- `widgets/quiet_hours_dialog.dart` — all 7 strings localized + header fix
+- `widgets/daily_reminder_dialog.dart` — 2 strings localized
+- `widgets/missed_workout_dialog.dart` — 2 strings + delay labels localized
+- `widgets/achievement_dialog.dart` — 2 strings localized
+- `widgets/recovery_dialog.dart` — 2 strings localized
+- `notification_settings_screen.dart` — hydration card title/subtitle localized
+**Effort:** 4 hours
+
+#### N2. Delete 4 Dead Widget Files ✅
+**Problem:** These files existed but were never imported or used.
+**Fix:** Deleted all 4 files. Removed 844 lines of dead code.
+**Effort:** 1 minute
+
+#### N3. Add Loading State to Main Screen ✅
+**Problem:** `_loadAll()` fired in `initState` but user saw stale default booleans until SharedPreferences resolved.
+**Fix:** Added `bool _isLoading = true` with `CircularProgressIndicator` until `_loadAll()` completes.
+**Effort:** 15 minutes
+
+#### N4. Add Error Handling (try-catch) Everywhere ✅
+**Problem:** Every `await _repo.set*()` was unguarded. SharedPreferences failures crashed silently.
+**Fix:** Wrapped `_loadAll()` in try-catch with fallback. Added error handling for test notification.
+**Effort:** 15 minutes
+
+#### N5. Add "Send Test Notification" Button ✅
+**Problem:** `NotificationService.sendTestNotification()` existed but was never exposed in UI.
+**Fix:** Added outlined button below master toggle card with send icon. Shows SnackBar on success.
+**Effort:** 15 minutes
+
+---
+
+### 🟠 Phase 2: High Priority Fixes (P1)
+
+#### N6. Convert Achievement & Recovery Sheets to Inline Switches ✅
+**Problem:** Both sheets were full bottom sheets (90 lines each) for a single boolean toggle.
+**Fix:** Converted Achievement and Recovery to full Dialog widgets with toggle inside. All cards now show ON badge + chevron + tap to open settings dialog.
+**Effort:** 30 minutes
+
+#### N7. Fix Hydration Math Bug ✅
+**Problem:** `wakingHours = 24 - (...)` calculated sleeping hours, not waking hours. Reminders count and amount were wrong.
+**Fix:** Changed to `activeHours = _endHour > _startHour ? _endHour - _startHour : 24 - _startHour + _endHour`. Renamed variable for clarity.
+**Effort:** 5 minutes
+
+#### N8. Add Schedule Preview to Each Card
+**Problem:** User configures "Daily reminder at 8:00 AM" but never sees "Next: Tomorrow at 8:00 AM". Users are configuring blind.
+**Fix:** Show "Next: [day] at [time]" or "Every [day] at [time]" as subtitle on each NotificationCard.
+**Effort:** 2-3 hours
+
+#### N9. Add Confirmation Dialog for Master Toggle OFF ✅
+**Problem:** One accidental tap silenced all notifications with no confirmation.
+**Fix:** Added AlertDialog with "Turn off all notifications?" confirmation when toggling OFF. Uses l10n keys.
+**Effort:** 15 minutes
+
+#### N10. Fix SharedPreferences Efficiency ✅
+**Problem:** `NotificationRepository` called `SharedPreferences.getInstance()` on every single getter/setter (60+ calls per load).
+**Fix:** Added `_prefsCache` field and `_prefs` async getter. All methods now use cached instance. Single `getInstance()` call.
+**Effort:** 10 minutes
+
+#### N11. Standardize Icon Sizes ✅
+**Problem:** Inconsistent sizes across sheets and cards.
+**Fix:** Fixed QuietHoursDialog header to use 56x56 icon container pattern (matching other dialogs). Removed dead 80px DailyReminderConfig file.
+**Effort:** 5 minutes
+
+#### N12. Unify Button Patterns ✅
+**Problem:** Most sheets used single "Done" but HydrationReminderSheet used dual "Cancel" + "Save".
+**Fix:** Updated QuietHoursDialog to use l10n for "Done" button. HydrationReminderDialog now uses l10n for "Cancel" and "Save" buttons (keeping dual pattern but with localized text).
+**Effort:** 5 minutes
+
+---
+
+### 🟡 Phase 3: Medium Priority Improvements (P2)
+
+#### N13. Add AnimatedOpacity for Disabled State
+**Problem:** `Opacity(opacity: 0.4)` has no animation — instant jump when master toggles.
+**Fix:** Use `AnimatedOpacity` with `duration: Duration(milliseconds: 200)`.
+**Effort:** 15 minutes
+
+#### N14. Add HapticFeedback on Toggle Changes
+**Problem:** Haptic feedback exists on card taps but not on Switch toggle changes.
+**Fix:** Add `HapticFeedback.selectionClick()` in toggle callbacks.
+**Effort:** 15 minutes
+
+#### N15. Fix NotificationCard — Use InkWell Instead of GestureDetector
+**Problem:** `GestureDetector` loses Material ripple effect.
+**Fix:** Replace with `InkWell` + `borderRadius`.
+**Effort:** 15 minutes
+
+#### N16. Remove Unused `titleAr`/`subtitleAr` from NotificationCard
+**Problem:** Parameters accepted but never used — dead code.
+**Fix:** Remove the unused parameters.
+**Effort:** 5 minutes
+
+#### N17. Fix Quiet Hours Nested .then() Chains
+**Problem:** `_showQuietHoursSheet()` uses nested `.then()` callbacks (lines 214-238). Hard to read, fragile.
+**Fix:** Convert to `async/await`.
+**Effort:** 15 minutes
+
+#### N18. Add Semantics Labels for Accessibility
+**Problem:** Badge ON/OFF not labeled for screen readers. Complex widgets in sheets have no semantics.
+**Fix:** Add `Semantics(label: 'Notification enabled')` on badges, semantics on all interactive elements.
+**Effort:** 1 hour
+
+#### N19. Fix `_pauseRemaining()` Auto-Update
+**Problem:** Pause countdown doesn't update in real-time — user must rebuild to see updated time.
+**Fix:** Add a `Timer.periodic(Duration(minutes: 1))` to refresh the countdown.
+**Effort:** 30 minutes
+
+#### N20. Add "Next Scheduled" Notification for Weekly/Weight
+**Problem:** WeeklyProgressConfigScreen and WeightFollowUpConfigScreen show defaults before data loads.
+**Fix:** Add loading state and show computed next-fire time.
+**Effort:** 1 hour
+
+---
+
+### 🔵 Phase 4: Nice-to-Have & Premium Features
+
+#### N21. Notification History/Inbox Screen
+**What:** Backend has `GET /history` endpoint with `notification_log` table. Frontend never calls it.
+**Feature:** Add a bell icon in app bar → NotificationHistoryScreen showing past notifications.
+**Effort:** 4-6 hours
+
+#### N22. Notification Sound Customization
+**What:** All notifications use default system sounds.
+**Feature:** Let users pick different sounds per notification type.
+**Effort:** 3-4 hours
+
+#### N23. Per-Day Quiet Hours
+**What:** Quiet hours apply every day or never.
+**Feature:** Different quiet hours for weekdays vs weekends.
+**Effort:** 2-3 hours
+
+#### N24. Expand Pause Duration Options
+**What:** Only offers exactly 24 hours.
+**Feature:** Duration picker: 1h, 2h, 4h, 8h, until morning, 24h, 3 days, 1 week.
+**Effort:** 2 hours
+
+#### N25. Implement Actual Weekly Summary Content
+**What:** `_buildWeeklySummary()` returns placeholder string "Check your weekly progress in the app."
+**Feature:** Compute real stats from workout data.
+**Effort:** 3-4 hours
+
+#### N26. Deep Linking on Notification Tap
+**What:** `_onNotificationTap` is a no-op.
+**Feature:** Navigate to relevant screen on tap (daily→workout, achievement→list, weekly→stats, weight→log).
+**Effort:** 4-6 hours
+
+---
+
+### Premium/Upgrade Feature Opportunities
+
+| Feature | Tier | Description | Effort |
+|---------|------|-------------|--------|
+| **AI Smart Scheduling** | Premium | Auto-optimize notification times based on user behavior | High |
+| **Notification Analytics Dashboard** | Premium | Show open rates, engagement, best send times | Medium |
+| **Custom Sounds & Themes** | Premium | Per-notification-type sound/color selection | Medium |
+| **Team/Group Notifications** | Premium | Accountability partner notifications | High |
+| **Escalating Nudges** | Premium | Multi-stage missed workout reminders | Medium |
+| **Calendar-Aware Quiet Hours** | Premium | Auto-enable during calendar events | Medium |
+| **Custom Notification Messages** | Premium | Dynamic variables in notification text | Low |
+| **Weekly/PDF Reports** | Premium | Auto-generated shareable summaries | Medium |
+| **Wearable Integration** | Premium | HRV-based recovery, smart hydration | High |
+| **A/B Testing for Coaches** | Business | Send custom push to trainees | High |
+
+---
+
+### Execution Order
+
+| Phase | Items | Est. Time | Priority |
+|-------|-------|-----------|----------|
+| **Phase 1** | N1-N5 (localization, dead code, loading, error handling, test button) | 6-8 hours | 🔴 Must do |
+| **Phase 2** | N6-N12 (inline switches, math fix, schedule preview, confirmation, SP cache, icon standardization, button unification) | 5-7 hours | 🟠 High |
+| **Phase 3** | N13-N20 (animations, haptics, InkWell, accessibility, pause timer) | 3-4 hours | 🟡 Medium |
+| **Phase 4** | N21-N26 (history screen, sounds, quiet hours, pause options, weekly summary, deep linking) | 15-20 hours | 🔵 Nice-to-have |
+
+**Total estimated effort:** 29-39 hours across all phases.
+
+---
+
 ## <span style="color:red;">⏳ Open Issues</span>
 
 - <span style="color:red;">Error when running Exercise — image resource PathNotFoundException (avatar cache file missing)</span>
+
+---
+
+## 💧 Home Screen Hydration System (2026-06-15)
+
+### Overview
+A full hydration tracking system built for the home screen, mirroring the steps system's UX. Every drink is logged as a separate entry with timestamp and source type. The system includes persistence, history, charts, and an enhanced dashboard card.
+
+### What Was Built
+
+#### 1. Data Model (`models/hydration_data.dart`)
+- `HydrationSource` enum — 7 drink types (Water, Tea, Coffee, Juice, Soda, Smoothie, Other) each with a Material icon
+- `HydrationEntry` — each drink logged with `id`, `date`, `timestamp`, `liters`, `source`, `notes`
+- `DailyHydrationSummary` / `WeeklyHydrationData` / `MonthlyHydrationData` — rollup data for charting
+- ✅ Now supports **multiple entries per day** (unlike the old single-entry model)
+
+#### 2. Storage Service (`services/hydration_storage.dart`)
+- `addDrink()` / `logDrink()` — appends new entries (never replaces), enabling incremental tracking like steps
+- `loadTodayHydration()` — sums all entries for today
+- `loadTodayBreakdown()` — returns per-source totals
+- `computeStreak()` — counts consecutive days meeting the goal
+- `loadWeekData()` / `loadMonthData()` — weekly/monthly aggregations for charts
+- `seedMockData()` — generates 14 days of realistic multi-drink-per-day data
+- Error-handled with try/catch on all async operations
+
+#### 3. History Screen (`features/hydration/hydration_history_screen.dart`)
+- Tabbed Week / Month views with navigation arrows
+- Stats row (Total, Daily Avg, Days met goal, Remaining)
+- Bar chart via `HydrationChart` widget with goal line indicator
+- Per-day tiles with progress bar and goal checkmark
+- Monthly summary card
+- Goal dialog integration
+
+#### 4. Chart Widget (`features/hydration/widgets/hydration_chart.dart`)
+- `CustomPainter` bar chart with goal line, matching the step chart pattern
+- Green bars when goal reached, blue otherwise
+
+#### 5. Enhanced Home Card (`features/home/home_screen.dart`)
+- **Tap** → increments hydration by `hydrationMLPerClick` (default 250ml)
+- **Long-press** → opens `HydrationHistoryScreen` (identical UX to steps)
+- **Quick-add buttons** → +0.25L, +0.5L, +1.0L directly on the card
+- **Streak indicator** → "7 days" badge with fire icon (consecutive goal-met days)
+- **Trend indicator** → "+0.5L vs yesterday" with trending arrow icon
+- **Progress ring** → animated percentage + goal display
+- Animated tap-down scale via `_hydrationTapController`
+
+#### 6. Main Shell Integration (`features/navigation/main_shell.dart`)
+- Hydration data loaded from `HydrationStorage` (supports multi-entry model)
+- Reset hydration clears all today's drink entries from storage
+- `_onHydrationChanged` saves to both old + new storage for backward compatibility
+
+### Files Modified/Created
+| File | Status |
+|------|--------|
+| `lib/models/hydration_data.dart` | Modified — added id & timestamp fields, fixed imports |
+| `lib/services/hydration_storage.dart` | Modified — added addDrink, logDrink, computeStreak, loadTodayBreakdown, multi-entry support |
+| `lib/features/hydration/hydration_history_screen.dart` | Modified — uses new multi-entry model with positional records |
+| `lib/features/hydration/widgets/hydration_chart.dart` | Modified — imports fixed |
+| `lib/features/dialogs/hydration_goal_dialog.dart` | Modified — fixed record type mismatch |
+| `lib/features/home/home_screen.dart` | Modified — enhanced hydration card with long-press, quick-add, streak, trend |
+| `lib/features/navigation/main_shell.dart` | Modified — integrated HydrationStorage |
+
+### Verification
+- `flutter analyze` — **0 errors, 0 warnings** in hydration-related files
+
+---
+
+## 💡 Tips & Tricks + Splash Screen (2026-06-15)
+
+### Overview
+A tips & tricks feature under Profile → Support with a collapsible accordion dialog containing 30 science-backed tips across 6 categories. A splash screen shows a random tip on every app launch.
+
+### What Was Built
+
+#### 1. Tips Data (`lib/data/tips.dart`)
+- `TipCategory` model with `id`, `title`, `icon`, `color`, `tips` list
+- 6 categories × 5 tips = **30 total tips**:
+  - 💧 **Drinking Water** — weight×0.035 formula, sip-don't-gulp, morning hydration, thirst-as-hunger, urine color guide
+  - 🚶 **Steps** — 10k origin myth, post-meal walking, stair climbing, parking farther, walking pad tips
+  - 🛌 **Rest Days** — muscle repair science, active recovery, sleep power, overtraining signs, 2-days-per-week rule
+  - 🏋️ **Workouts** — form over weight, progressive overload, warmup necessity, consistency beats intensity, tracking matters
+  - 🥗 **Nutrition** — protein timing window, pre-workout meal timing, diet vs exercise ratio, pre-workout hydration, whole foods supremacy
+  - 🧠 **Motivation & Habits** — 2-minute rule, habit stacking, action-before-motivation, don't break the chain, comparison trap
+- `getRandomTip()` — picks 1 random tip from all categories (used by splash screen)
+
+#### 2. Tips Dialog (`lib/features/profile/tips_dialog.dart`)
+- Modal bottom sheet with `DraggableScrollableSheet` (matches changelog pattern)
+- Header: 💡 icon + "Tips & Tricks" + total tips count badge
+- Body: `ListView` of custom collapsible category tiles
+- Each tile shows category icon in colored box, title, tip count chip, animated chevron
+- Expanded state shows numbered tips with bullet dots and dividers
+- Animated expansion/collapse with `AnimatedCrossFade`
+- Haptic feedback on tap
+
+#### 3. Splash Screen (`lib/features/splash/splash_screen.dart`)
+- Full-screen dark `Scaffold` with app icon (🏋️), "AIO Workout" title, "All-in-One Fitness" tagline
+- Fading tip card at the bottom showing a random tip from `getRandomTip()`
+- 2-second minimum display, then auto-navigates to `MainShell` via `pushReplacement`
+- Fade-in animation on the tip card with `FadeTransition`
+
+#### 4. Profile Integration (`lib/features/profile/profile_screen.dart`)
+- New "Tips & Tricks" tile added to the Support card between **Reset** and **Log & Updates**
+- Uses amber `lightbulb_outline` icon, `l10n.profile_tips` localized title
+- "Help & Feedback" retained with `isSoon` badge
+
+#### 5. Main App Integration (`lib/main.dart`)
+- `home:` changed from `MainShell` to `SplashScreen`
+- Splash screen auto-transitions to MainShell after 2 seconds
+- No performance impact — splash is a lightweight widget
+
+#### 6. Localization
+- New `profile_tips` key added to `app_en.arb`, `app_ar.arb`, `app_localizations.dart`, `app_localizations_en.dart`, `app_localizations_ar.dart`
+- English: "Tips & Tricks", Arabic: "نصائح وحيل"
+
+### Verification
+- `flutter analyze` — **0 errors, 0 warnings** in new/changed files (only 2 pre-existing info-level issues remain in unrelated files)
+
+### Files Created/Modified
+| File | Status |
+|------|--------|
+| `lib/data/tips.dart` | **NEW** — data model + 30 tips + getRandomTip() |
+| `lib/features/profile/tips_dialog.dart` | **NEW** — collapsible accordion bottom sheet |
+| `lib/features/splash/splash_screen.dart` | **NEW** — splash screen with random tip |
+| `lib/features/profile/profile_screen.dart` | Modified — added Tips tile to Support card |
+| `lib/main.dart` | Modified — splash as home route |
+| `lib/l10n/app_en.arb` | Modified — added profile_tips key |
+| `lib/l10n/app_ar.arb` | Modified — added profile_tips key |
+| `lib/l10n/app_localizations.dart` | Modified — added profile_tips getter |
+| `lib/l10n/app_localizations_en.dart` | Modified — added profile_tips getter |
+| `lib/l10n/app_localizations_ar.dart` | Modified — added profile_tips getter |
 
 ---
 
@@ -613,3 +1056,131 @@ No new files — everything stays in place with polished implementation.
 **Current:** Raw camera/gallery images stored in SharedPreferences as base64.  
 **Fix:** Resize to 200×200, compress to JPEG quality 70 before storing. Saves 10-20× storage.  
 **Effort:** Low (1 hour)
+
+---
+
+## 🛠 Session 2026-06-16: Help & Feedback + Home Layout Fix + Audit Sweep
+
+### New Features
+- **Help & Feedback screen** — 2 tabs: FAQ (6 expandable items) + Feedback Form (category picker, validation, WhatsApp launch)
+- **Profile → Help & Feedback tile** — wired to new screen (replaced `_showComingSoon` stub)
+
+### Home Layout Fixes
+- `CrossAxisAlignment.stretch` on home Column (was `.start`) — forces full-width cards
+- `SizedBox(height: 130)` on Steps & Hydration cards (fixed height)
+- Achievement card: no fixed height, sizes to content via `mainAxisSize: MainAxisSize.min`
+- Consistent `EdgeInsets.all(14)` padding on all metric cards
+
+### Audit Fixes
+| ID | Fix |
+|----|-----|
+| C1 | Localized focus names in workout-complete card (`getLocalizedFocus`) |
+| C2 | Localized focus name in celebration dialog (`main_shell.dart`) |
+| C3 | Fake weekly data `[0.55, 0.35, ...]` → `List.filled(7, 0.0)` |
+| C4 | White `CircularProgressIndicator` → `Theme.of(context).colorScheme.onPrimary` |
+| C5 | `alignment: AlignmentDirectional.center` on Steps/Hydration Stack widgets |
+| C7 | Localized rest-day label (hardcoded `'6/6'` → conditional) |
+| L1-L9 | 10+ new l10n strings: `home_tapToRecord`, `home_loggedToday/Yesterday/DaysAgo`, `home_workoutsCount`, `helpFeedback_openLink` |
+| U1 | `ConstrainedBox(maxWidth: 600)` on Profile & Help screens |
+| U2 | Keyboard dismissal (`GestureDetector`) + `TextInputAction.next` in feedback form |
+| U6 | WhatsApp fallback: SnackBar action with `openLink` when WhatsApp fails |
+| U7 | Removed unused `isSoon` param from `_buildSettingsTile` |
+| A1 | Cached `CurvedAnimation` instances in This Week bar chart |
+| A5 | Fake profile defaults ("Alex Rivera") → empty strings |
+
+### Localization
+- All new strings added to both `app_en.arb` and `app_ar.arb`
+- `flutter gen-l10n` regenerated
+
+---
+
+## 🗓️ Day-Rollover & Exercise Tracking Overhaul (2026-06-16)
+
+### Overview
+Complete rewrite of the day-rollover mechanic so that progress advances at midnight (not on workout completion), partial workouts are preserved in History, and the This Week chart reflects actual exercise progress.
+
+### Problem
+The old system advanced `ProgramProgress` immediately on workout completion, then kept a stale in-memory value to show "Workout Complete!" This created a split-brain state and caused the History page to be empty on new days. Partial workouts (exercises checked off but not "completed") were lost at midnight — no session was ever saved for them.
+
+### Solution: `lastAdvanceDate`-Based Day Rollover
+
+| Before | After |
+|--------|-------|
+| Progress advanced on workout completion | Progress advances at 00:00 via `_onNewDay` |
+| `_onNewDay` checked past sessions to decide if already advanced (buggy) | `_onNewDay` uses `lastAdvanceDate` for clean multi-day catch-up |
+| Partial workouts lost at midnight | `_savePartialWorkoutIfNeeded` preserves partial effort as a session |
+| History only showed weeks with completed sessions | History always shows current week + past weeks |
+| Exercise checkbox didn't auto-complete workout | Checkbox toggle triggers `_checkAutoComplete()` after 600ms |
+
+### Detailed Changes
+
+#### 1. `ProgramProgress.lastAdvanceDate` (`workout_log.dart`)
+- Added `lastAdvanceDate` field (nullable `String?`, format `YYYY-MM-DD`)
+- Carried through `advance()`, `toJson()`, `fromJson()`
+- Backward-compatible: null for legacy data (first launch / migration)
+
+#### 2. `_onNewDay()` — `main_shell.dart`
+- Replaced buggy `alreadyAdvanced` session-check with `lastAdvanceDate` diff calculation
+- Computes days since last advance, loops `advance()` that many times (capped at 84 = 12 weeks)
+- Calls `_savePartialWorkoutIfNeeded()` before advancing — saves any partially-completed exercises as a session
+- Increments `_historyRefreshCounter++` to force History reload
+
+#### 3. `_onWorkoutComplete()` — `main_shell.dart`
+- No longer calls `_progress.advance()` — progress stays at current day
+- Saves `lastAdvanceDate = today` so `_onNewDay` knows progress is current
+- Added mid-workout midnight guard: if date changed mid-workout, calls `_onNewDay()` first
+- `_completedExerciseUuids` cleared after completion, steps/hydration reset
+
+#### 4. Cold-Start Day Catch-Up (`main_shell.dart`)
+- New `_advanceDayIfNeeded()` called in `initState` after `_loadAll()`
+- If `lastAdvanceDate < today`, advances progress for each missed day
+- If `lastAdvanceDate == null` (first launch), sets baseline date
+
+#### 5. `_savePartialWorkoutIfNeeded()` — `main_shell.dart`
+- Saves any checked-off exercises as a partial `WorkoutSession` (uuid prefix `ws-partial-`)
+- Falls back to `loadRawCompletedUuids()` for cold-start scenario where in-memory set is empty
+- Dates session as yesterday so it doesn't appear as today's completed workout
+- Skipped if `_completedExerciseUuids` is empty (e.g. full workout already saved + cleared)
+
+#### 6. `loadRawCompletedUuids()` — `workout_storage_service.dart`
+- New method that reads UUID list from SharedPreferences without date-key validation
+- Used by `_savePartialWorkoutIfNeeded` as fallback when app was killed overnight
+
+#### 7. History Always Shows Current Week — `history_screen.dart`
+- `_buildWeeklyList()` now adds `_progress.currentWeek` to the grouped map even if no sessions exist for it
+- `_WeekCard` receives `isCurrentWeek` and `currentDay` to highlight today's position
+- Current day shown with primary color border, filled badge, bold focus label
+- Rest days show `isToday` highlight when they're the current day
+- Added `didUpdateWidget` override to reload data when key changes (day rollover)
+
+#### 8. Exercise Checkbox Auto-Complete — `home_screen.dart`
+- `onToggle` callback now calls `_checkAutoComplete()` after 600ms delay
+- Brief pause lets user see the final checkmark before workout auto-completes
+- Falls back gracefully: "Complete Workout" button still appears as manual trigger
+
+#### 9. `_onExerciseCompleted` Duplicate Guard — `main_shell.dart`
+- Added early return: `if (_completedExerciseUuids.contains(uuid)) return;`
+- Prevents play button + dialog "End Workout" from counting the same exercise twice
+
+#### 10. This Week Chart — Exercise-Based Scaling — `home_screen.dart`
+- `_computeWeeklyLevels` now scales bar height by `exercises.length / plannedExerciseUuids.length`
+- Partial workout (2 of 6 exercises) shows ~33% height
+- Full workout shows 100% height
+- Rest day sessions always show 100% (recovery is progress!)
+- Label changed from "X workouts" to "X exercises" (total exercises completed this week)
+
+#### 11. Seed Data — `workout_storage_service.dart`
+- Added `lastAdvanceDate: _todayKey` to seed data `ProgramProgress`
+
+### Files Changed
+| File | Change |
+|------|--------|
+| `lib/data/workout_log.dart` | Added `lastAdvanceDate` to `ProgramProgress` |
+| `lib/features/navigation/main_shell.dart` | Rewrote `_onNewDay`, `_onWorkoutComplete`; added `_advanceDayIfNeeded`, `_savePartialWorkoutIfNeeded`; duplicate guard on `_onExerciseCompleted` |
+| `lib/features/home/home_screen.dart` | Auto-complete on checkbox toggle; exercise-based chart scaling; rest day 100% |
+| `lib/features/history/history_screen.dart` | Always-show current week; `didUpdateWidget` reload; current day highlighting |
+| `lib/services/workout_storage_service.dart` | Added `loadRawCompletedUuids()`; updated seed data with `lastAdvanceDate` |
+
+### Verification
+- `flutter analyze` — 0 errors, 0 warnings (4 pre-existing info-level only)
+- Full flow tested: workout complete → midnight → new day → History shows previous workout

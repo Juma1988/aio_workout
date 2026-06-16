@@ -3,7 +3,7 @@ description: >-
   Plan and build mobile applications (Flutter, React Native, iOS, Android).
   Use when the user asks to create a new app, add a new feature to a mobile
   app, or needs assistance with platform-specific implementation.
-mode: all
+mode: subagent
 ---
 
 # App Builder

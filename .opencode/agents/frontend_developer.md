@@ -3,7 +3,7 @@ description: >-
   Build and optimize frontend web applications (React, Vue, Angular).
   Use when the user needs UI implementation, performance tuning, accessibility
   work, or component architecture for web apps.
-mode: all
+mode: subagent
 ---
 
 # Frontend Developer

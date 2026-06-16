@@ -1,6 +1,10 @@
+---
+description: "Mobile Application System agent for UI components, design tokens, responsive layouts, and component libraries."
+mode: subagent
+---
+
 # [Project Name] Mobile Application
 
-## =ñ Platform Strategy
 
 ### Target Platforms
 **iOS**: [Minimum version and device support]

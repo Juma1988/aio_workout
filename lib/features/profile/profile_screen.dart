@@ -25,6 +25,9 @@ import '../notifications/services/notification_repository.dart';
 import 'exersise_dialog.dart';
 import 'home_settings_dialog.dart';
 import 'changelog_dialog.dart';
+import 'tips_dialog.dart';
+import '../help_feedback/help_feedback_screen.dart';
+import '../../core/app_version.dart';
 
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onHomeSettingsChanged;
@@ -51,7 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   int _restTimerSeconds = 30;
 
   // Profile data
-  String _name = 'Alex Rivera';
+  String _name = '';
   String _email = 'alex@workout.dev';
   String? _avatarPath;
   int _age = 28;
@@ -66,7 +69,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   bool _useMetric = true;
 
   String get _initials {
-    final parts = _name.split(' ');
+    if (_name.trim().isEmpty) return '';
+    final parts = _name.trim().split(RegExp(r'\s+'));
     if (parts.length >= 2) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
@@ -87,8 +91,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      _name = prefs.getString('profile_name') ?? 'Alex Rivera';
-      _email = prefs.getString('profile_email') ?? 'alex@workout.dev';
+      _name = prefs.getString('profile_name') ?? '';
+      _email = prefs.getString('profile_email') ?? '';
       final avatarPath = prefs.getString('profile_avatar_path');
       _avatarPath = (avatarPath != null && File(avatarPath).existsSync()) ? avatarPath : null;
       _age = prefs.getInt('profile_age') ?? 28;
@@ -178,11 +182,14 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Semantics(
       label: 'Profile screen',
       child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               buildStaggeredSection(
                 controller: _entranceController,
                 index: 0,
@@ -224,7 +231,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                 reduceMotion: _reduceMotion,
                 child: _buildFooter(context, colorScheme),
               ),
-            ],
+],
+              ),
+            ),
           ),
         ),
       ),
@@ -677,6 +686,14 @@ class _ProfileScreenState extends State<ProfileScreen>
               _divider(context),
               _buildSettingsTile(
                 context,
+                icon: Icons.lightbulb_outline,
+                title: l10n.profile_tips,
+                color: Colors.amber.shade700,
+                onTap: () => showTipsDialog(context),
+              ),
+              _divider(context),
+              _buildSettingsTile(
+                context,
                 icon: Icons.update_rounded,
                 title: l10n.profile_logUpdates,
                 color: AppTheme.achievementGreen,
@@ -688,8 +705,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                 icon: Icons.help_outline,
                 title: l10n.profile_help,
                 color: Theme.of(context).colorScheme.primary,
-                isSoon: true,
-                onTap: () => _showComingSoon(context, l10n.profile_help),
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const HelpFeedbackScreen()),
+                  );
+                },
               ),
             ],
           ),
@@ -835,36 +856,12 @@ class _ProfileScreenState extends State<ProfileScreen>
     required IconData icon,
     required String title,
     required Color color,
-    bool isSoon = false,
     String? subtitle,
     required VoidCallback onTap,
   }) {
-    final l10n = AppLocalizations.of(context);
     return ListTile(
       leading: ColoredIconBox(icon: icon, color: color, size: 36),
-      title: Row(
-        children: [
-          Text(title, style: TextStyle(color: AppTheme.textPrimary(context))),
-          if (isSoon) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.subtleFill(context, 0.10),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                l10n.profile_soon,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textTertiary(context),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+      title: Text(title, style: TextStyle(color: AppTheme.textPrimary(context))),
       subtitle: subtitle != null
           ? Padding(
               padding: const EdgeInsets.only(top: 2),
@@ -913,7 +910,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          'v0.1.0',
+          'v$appVersion',
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
             color: AppTheme.textDisabled(context),
           ),
@@ -929,52 +926,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         builder: (_) => const EditProfileDialog(),
       ),
     ).then((_) => _loadAll());
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    final l10n = AppLocalizations.of(context);
-    HapticFeedback.lightImpact();
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppTheme.subtleFill(context, 0.30),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Icon(
-              Icons.construction,
-              size: 48,
-              color: AppTheme.textTertiary(context),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              feature,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.profile_comingSoon,
-              style: TextStyle(color: AppTheme.textSecondary(context)),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showResetDialog(BuildContext context) {

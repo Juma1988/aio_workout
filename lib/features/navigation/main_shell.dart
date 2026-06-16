@@ -11,6 +11,7 @@ import '../../data/weight_entry.dart';
 import '../../data/workout_log.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/workout_storage_service.dart' show WorkoutStorageService, dateKey;
+import '../../services/hydration_storage.dart';
 import '../../services/step_counter_service.dart';
 import '../../services/step_history_storage.dart';
 import '../achievements/providers/achievement_provider.dart';
@@ -51,6 +52,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   bool _todayCompleted = false;
   int _stepsGoal = 10000;
+  double _hydrationGoal = 2.5;
   bool _useSensor = true;
   StreamSubscription<int>? _stepSubscription;
 
@@ -68,27 +70,111 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   Timer? _dayCheckTimer;
   String _lastDateKey = '';
 
+  /// Advances program progress for each calendar day that has passed since
+  /// [lastAdvanceDate]. Called on midnight rollover and app cold-start.
+  ///
+  /// Before advancing, saves any partial workout progress from the previous
+  /// day as a session so the user's effort appears in History.
   Future<void> _onNewDay(String today) async {
     _lastDateKey = today;
 
+    // Save any partial workout from yesterday before advancing.
+    await _savePartialWorkoutIfNeeded();
+
     final progress = await _storageService.loadProgramProgress();
-    final sessions = await _storageService.loadSessions();
 
-    bool alreadyAdvanced = sessions.any((s) {
-      final next = ProgramProgress(
-        currentWeek: s.weekNumber,
-        currentDay: s.dayNumber,
-      ).advance();
-      return next.currentWeek == progress.currentWeek &&
-          next.currentDay == progress.currentDay;
-    });
+    int daysToAdvance;
+    if (progress.lastAdvanceDate == null) {
+      // First launch or migration — just mark today as the baseline.
+      daysToAdvance = 0;
+    } else {
+      final lastDate = DateTime.parse(progress.lastAdvanceDate!);
+      final todayDate = DateTime.parse(today);
+      daysToAdvance = todayDate.difference(lastDate).inDays;
+    }
+    daysToAdvance = daysToAdvance.clamp(0, 84); // Cap at 12 weeks
 
-    if (!alreadyAdvanced) {
-      final next = progress.advance();
-      await _storageService.saveProgramProgress(next);
+    if (daysToAdvance > 0) {
+      ProgramProgress advanced = progress;
+      for (int i = 0; i < daysToAdvance; i++) {
+        advanced = advanced.advance();
+      }
+      final updated = ProgramProgress(
+        currentWeek: advanced.currentWeek,
+        currentDay: advanced.currentDay,
+        lastAdvanceDate: today,
+      );
+      await _storageService.saveProgramProgress(updated);
+    } else if (progress.lastAdvanceDate == null) {
+      // First launch — set baseline date without advancing.
+      final updated = ProgramProgress(
+        currentWeek: progress.currentWeek,
+        currentDay: progress.currentDay,
+        lastAdvanceDate: today,
+      );
+      await _storageService.saveProgramProgress(updated);
     }
 
-    _loadAll();
+    // Force History to reload — yesterday's workout is now visible.
+    _historyRefreshCounter++;
+    await _loadAll();
+  }
+
+  /// Saves any partially-completed workout as a session so it appears in
+  /// History. Called at midnight before the day advances.
+  ///
+  /// Falls back to raw SharedPreferences UUIDs on cold start, where the
+  /// in-memory set is empty because loadTodayCompletedUuids() returns {}
+  /// when the saved date doesn't match today.
+  Future<void> _savePartialWorkoutIfNeeded() async {
+    // Try in-memory set first (works when app was running at midnight).
+    Set<String> uuids = _completedExerciseUuids;
+
+    // On cold start the in-memory set is empty because loadTodayCompletedUuids()
+    // returned {} (date mismatch).  Try the raw stored UUIDs as fallback.
+    if (uuids.isEmpty) {
+      uuids = await _storageService.loadRawCompletedUuids();
+    }
+
+    if (uuids.isEmpty) return;
+
+    final exercises = getTodayExercises(_progress.currentDay);
+    final completedExercises = exercises
+        .where((e) => uuids.contains(e.uuid))
+        .map((e) {
+      final lvl = e.getLevel(e.recommendedLevel);
+      return CompletedExercise(
+        exerciseUuid: e.uuid,
+        exerciseName: e.name,
+        setsCompleted: lvl?.sets ?? 1,
+        repsCompleted: lvl?.reps,
+        durationSeconds: lvl?.durationSeconds,
+      );
+    }).toList();
+
+    if (completedExercises.isEmpty) return;
+
+    // Date the session as yesterday so it doesn't count as today's completed
+    // workout (which would hide the new day's exercise list).
+    final sessionDate = DateTime.now().subtract(const Duration(days: 1));
+    final focus = getFocusForDay(
+        _progress.currentWeek, _progress.currentDay);
+
+    final session = WorkoutSession(
+      uuid: 'ws-partial-${DateTime.now().millisecondsSinceEpoch}',
+      date: sessionDate,
+      weekNumber: _progress.currentWeek,
+      dayNumber: _progress.currentDay,
+      focus: focus,
+      durationSeconds: 0,
+      exercises: completedExercises,
+      plannedExerciseUuids: exercises.map((e) => e.uuid).toList(),
+      steps: _steps,
+      hydrationLiters: _hydrationLiters,
+      achievementsUnlocked: [],
+    );
+
+    await _storageService.addSession(session);
   }
 
   @override
@@ -99,6 +185,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     _initStepCounter();
     _loadAll().then((_) {
       _lastDateKey = dateKey(DateTime.now());
+      // On cold start, catch up on any missed day advances.
+      _advanceDayIfNeeded();
     });
     _dayCheckTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       final today = dateKey(DateTime.now());
@@ -106,6 +194,19 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         _onNewDay(today);
       }
     });
+  }
+
+  /// Checks whether program progress is behind the current calendar day
+  /// and advances it if necessary.  Called once on cold start.
+  Future<void> _advanceDayIfNeeded() async {
+    final today = dateKey(DateTime.now());
+    final progress = await _storageService.loadProgramProgress();
+    if (progress.lastAdvanceDate != null && progress.lastAdvanceDate != today) {
+      await _onNewDay(today);
+    } else if (progress.lastAdvanceDate == null) {
+      // First launch — set baseline date.
+      await _onNewDay(today);
+    }
   }
 
   Future<void> _initStepCounter() async {
@@ -176,6 +277,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         showThisWeek: _showThisWeek,
         isTodayCompleted: _todayCompleted,
         stepsGoal: _stepsGoal,
+        hydrationGoal: _hydrationGoal,
         useSensor: _useSensor,
       ),
       HistoryScreen(
@@ -194,7 +296,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   Future<void> _loadAll() async {
     final progress = await _storageService.loadProgramProgress();
     final steps = await _stepStorage.loadTodaySteps();
-    final hydration = await _storageService.loadTodayHydration();
+    final hydration = await HydrationStorage().loadTodayHydration();
     final uuids = await _storageService.loadTodayCompletedUuids();
     final weightEntries = await _storageService.loadWeightEntries();
     final weightGoal = await _storageService.loadWeightGoal();
@@ -205,6 +307,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     final completedToday = sessions.any((s) => dateKey(s.date) == todayStr);
     final stepsGoal = await _stepStorage.loadDailyGoal();
     final useSensor = await _stepStorage.loadUseSensor();
+    final hydrationGoal = await loadHydrationTarget();
     if (mounted) {
       setState(() {
         _progress = progress;
@@ -218,6 +321,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         _recentSessions = sessions;
         _stepsGoal = stepsGoal;
         _useSensor = useSensor;
+        _hydrationGoal = hydrationGoal;
       });
     }
     await _checkMissedWorkoutReminder(progress);
@@ -265,7 +369,11 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   void _onHydrationChanged(double v) {
     setState(() => _hydrationLiters = v);
-    _persistToday();
+    _storageService.saveTodayState(
+      steps: _steps,
+      hydration: v,
+      completedUuids: _completedExerciseUuids,
+    );
   }
 
   void _onStepsChanged(int v) {
@@ -293,6 +401,14 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   void _onHomeSettingsChanged() {
     _loadHomeSettings();
+    _reloadHydrationGoal();
+  }
+
+  Future<void> _reloadHydrationGoal() async {
+    final hydrationGoal = await loadHydrationTarget();
+    if (mounted) {
+      setState(() => _hydrationGoal = hydrationGoal);
+    }
   }
 
   Future<void> _onResetSteps() async {
@@ -304,6 +420,11 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('today_date', dateKey(DateTime.now()));
     await prefs.setDouble('today_hydration', 0.0);
+    // Also clear all hydration entries for today
+    final today = dateKey(DateTime.now());
+    final allEntries = await HydrationStorage().loadAllEntries();
+    allEntries.removeWhere((e) => e.date == today);
+    await HydrationStorage().saveAllEntries(allEntries);
     _loadAll();
   }
 
@@ -335,6 +456,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   void _onExerciseCompleted(String uuid) {
+    if (_completedExerciseUuids.contains(uuid)) return; // no duplicates
     setState(() => _completedExerciseUuids.add(uuid));
     _persistToday();
   }
@@ -352,9 +474,15 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   Future<void> _onWorkoutComplete(
       int durationSeconds, DateTime startTime) async {
+    // Check if day changed mid-workout (e.g. workout started before midnight)
+    final today = dateKey(DateTime.now());
+    if (today != _lastDateKey) {
+      await _onNewDay(today);
+    }
+
     final now = DateTime.now();
-    final focus = getFocusForDay(
-        _progress.currentWeek, _progress.currentDay);
+    final focus = getLocalizedFocus(
+        AppLocalizations.of(context), _progress.currentWeek, _progress.currentDay);
 
     final currentExercises = getTodayExercises(_progress.currentDay);
     final completedExercises = currentExercises
@@ -387,12 +515,19 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       achievementsUnlocked: [],
     );
 
-    final next = _progress.advance();
     final provider = context.read<AchievementProvider>();
 
     try {
       await _storageService.addSession(session);
-      await _storageService.saveProgramProgress(next);
+      // Don't advance progress here — it will advance at midnight via
+      // _onNewDay.  Mark lastAdvanceDate so _onNewDay knows progress
+      // is current for today and won't double-advance.
+      final updatedProgress = ProgramProgress(
+        currentWeek: _progress.currentWeek,
+        currentDay: _progress.currentDay,
+        lastAdvanceDate: dateKey(DateTime.now()),
+      );
+      await _storageService.saveProgramProgress(updatedProgress);
       await _storageService.clearTodayState();
 
       // Evaluate new achievements via provider
@@ -420,8 +555,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       setState(() {
         // Keep _progress at today's values so the "Today's Workout" section
         // shows a completion message rather than immediately advancing to
-        // the next day's workout. The advanced progress is already saved
-        // to storage above — it will be loaded on the next calendar day.
+        // the next day's workout.  Progress will advance at midnight via
+        // _onNewDay.
         _todayCompleted = true;
         _completedExerciseUuids = {};
         _steps = 0;

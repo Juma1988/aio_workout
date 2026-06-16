@@ -3,35 +3,29 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/colored_icon_box.dart';
 import '../../../core/widgets/directional_icon.dart';
-import '../../../l10n/app_localizations.dart';
 
 class NotificationCard extends StatelessWidget {
   final String title;
-  final String? titleAr;
   final String? subtitle;
-  final String? subtitleAr;
   final IconData icon;
   final Color iconColor;
   final bool isEnabled;
-  final bool showBadge;
-  final VoidCallback onOpenSettings;
+  final bool hasSettings;
+  final VoidCallback? onTap;
 
   const NotificationCard({
     super.key,
     required this.title,
-    this.titleAr,
     this.subtitle,
-    this.subtitleAr,
     required this.icon,
     required this.iconColor,
     required this.isEnabled,
-    this.showBadge = true,
-    required this.onOpenSettings,
+    this.hasSettings = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
@@ -46,23 +40,21 @@ class NotificationCard extends StatelessWidget {
       elevation: 0,
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      child: Semantics(
-        button: true,
-        hint: l10n.notif_tapToChange,
-        child: GestureDetector(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            onOpenSettings();
-          },
-          behavior: HitTestBehavior.opaque,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 72),
-            child: Padding(
-              padding: const EdgeInsetsDirectional.only(
-                start: 16,
-                end: 16,
-              ),
-              child: Row(
+      child: InkWell(
+        onTap: onTap != null
+            ? () {
+                HapticFeedback.lightImpact();
+                onTap!();
+              }
+            : null,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 72),
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: 16,
+              end: 16,
+            ),
+            child: Row(
               children: [
                 ColoredIconBox(
                   icon: icon,
@@ -97,16 +89,16 @@ class NotificationCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (isEnabled && showBadge) ...[
-                  const SizedBox(width: 8),
+                if (isEnabled)
                   Container(
+                    margin: const EdgeInsetsDirectional.only(end: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: AppTheme.achievementGreen.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      l10n.notif_on,
+                      'ON',
                       style: TextStyle(
                         fontSize: 11,
                         color: AppTheme.achievementGreen,
@@ -114,18 +106,16 @@ class NotificationCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                ],
-                const SizedBox(width: 4),
-                DirectionalIcon(
-                  icon: Icons.chevron_right,
-                  color: AppTheme.textTertiary(context),
-                  size: 20,
-                ),
+                if (hasSettings)
+                  DirectionalIcon(
+                    icon: Icons.chevron_right,
+                    size: 20,
+                    color: AppTheme.textTertiary(context),
+                  ),
               ],
             ),
           ),
         ),
-      ),
       ),
     );
   }

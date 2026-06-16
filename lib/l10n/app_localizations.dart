@@ -602,6 +602,12 @@ abstract class AppLocalizations {
   /// **'Log & Updates'**
   String get profile_logUpdates;
 
+  /// No description provided for @profile_tips.
+  ///
+  /// In en, this message translates to:
+  /// **'Tips & Tricks'**
+  String get profile_tips;
+
   /// No description provided for @profile_resetTitle.
   ///
   /// In en, this message translates to:
@@ -2665,6 +2671,684 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Current'**
   String get dialog_current;
+
+  /// No description provided for @notif_hydrationReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Hydration Reminder'**
+  String get notif_hydrationReminder;
+
+  /// No description provided for @notif_hydrationReminderSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Get reminded to drink water throughout the day'**
+  String get notif_hydrationReminderSub;
+
+  /// No description provided for @notif_hydrationReminderConfigTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hydration Reminder'**
+  String get notif_hydrationReminderConfigTitle;
+
+  /// No description provided for @notif_hydrationReminderConfigBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure your hydration reminder settings'**
+  String get notif_hydrationReminderConfigBody;
+
+  /// No description provided for @notif_hydrationEnable.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Hydration Reminder'**
+  String get notif_hydrationEnable;
+
+  /// No description provided for @notif_hydrationEnableSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive periodic reminders to stay hydrated'**
+  String get notif_hydrationEnableSub;
+
+  /// No description provided for @notif_hydrationInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder Interval'**
+  String get notif_hydrationInterval;
+
+  /// No description provided for @notif_hydrationActiveHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Hours'**
+  String get notif_hydrationActiveHours;
+
+  /// No description provided for @notif_hydrationRemindersPerDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders per day'**
+  String get notif_hydrationRemindersPerDay;
+
+  /// No description provided for @notif_hydrationAmountPerReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount per reminder'**
+  String get notif_hydrationAmountPerReminder;
+
+  /// No description provided for @notif_hydrationBasedOnGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on your {goal}L daily goal'**
+  String notif_hydrationBasedOnGoal(String goal);
+
+  /// No description provided for @notif_hydrationMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to hydrate! Drink ~{amount}mL to stay on track 💧'**
+  String notif_hydrationMessage(int amount);
+
+  /// No description provided for @notif_enableAchievement.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Achievement Notifications'**
+  String get notif_enableAchievement;
+
+  /// No description provided for @notif_enableAchievementSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Get notified when you unlock a new achievement'**
+  String get notif_enableAchievementSub;
+
+  /// No description provided for @notif_enableRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Recovery Suggestions'**
+  String get notif_enableRecovery;
+
+  /// No description provided for @notif_enableRecoverySub.
+  ///
+  /// In en, this message translates to:
+  /// **'Get reminded to take rest days after consecutive workouts'**
+  String get notif_enableRecoverySub;
+
+  /// No description provided for @notif_enableQuietHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Quiet Hours'**
+  String get notif_enableQuietHours;
+
+  /// No description provided for @notif_chooseStartTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose start time'**
+  String get notif_chooseStartTime;
+
+  /// No description provided for @notif_chooseEndTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose end time'**
+  String get notif_chooseEndTime;
+
+  /// No description provided for @notif_enableDailyReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Daily Reminder'**
+  String get notif_enableDailyReminder;
+
+  /// No description provided for @notif_enableDailyReminderSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Receive a daily reminder to complete your workout'**
+  String get notif_enableDailyReminderSub;
+
+  /// No description provided for @notif_enableMissedWorkout.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable Missed Workout Reminder'**
+  String get notif_enableMissedWorkout;
+
+  /// No description provided for @notif_enableMissedWorkoutSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Get a nudge when you miss a workout'**
+  String get notif_enableMissedWorkoutSub;
+
+  /// No description provided for @notif_hour.
+  ///
+  /// In en, this message translates to:
+  /// **'hour'**
+  String get notif_hour;
+
+  /// No description provided for @notif_hours.
+  ///
+  /// In en, this message translates to:
+  /// **'hours'**
+  String get notif_hours;
+
+  /// No description provided for @notif_day.
+  ///
+  /// In en, this message translates to:
+  /// **'day'**
+  String get notif_day;
+
+  /// No description provided for @notif_confirmTurnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off all notifications?'**
+  String get notif_confirmTurnOff;
+
+  /// No description provided for @notif_confirmTurnOffBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You won\'t receive any workout reminders, achievements, or progress updates.'**
+  String get notif_confirmTurnOffBody;
+
+  /// No description provided for @notif_keepEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep On'**
+  String get notif_keepEnabled;
+
+  /// No description provided for @notif_turnOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn Off'**
+  String get notif_turnOff;
+
+  /// No description provided for @notif_nextScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Next: {time}'**
+  String notif_nextScheduled(String time);
+
+  /// No description provided for @notif_weekdayMonday.
+  ///
+  /// In en, this message translates to:
+  /// **'Monday'**
+  String get notif_weekdayMonday;
+
+  /// No description provided for @notif_weekdayTuesday.
+  ///
+  /// In en, this message translates to:
+  /// **'Tuesday'**
+  String get notif_weekdayTuesday;
+
+  /// No description provided for @notif_weekdayWednesday.
+  ///
+  /// In en, this message translates to:
+  /// **'Wednesday'**
+  String get notif_weekdayWednesday;
+
+  /// No description provided for @notif_weekdayThursday.
+  ///
+  /// In en, this message translates to:
+  /// **'Thursday'**
+  String get notif_weekdayThursday;
+
+  /// No description provided for @notif_weekdayFriday.
+  ///
+  /// In en, this message translates to:
+  /// **'Friday'**
+  String get notif_weekdayFriday;
+
+  /// No description provided for @notif_weekdaySaturday.
+  ///
+  /// In en, this message translates to:
+  /// **'Saturday'**
+  String get notif_weekdaySaturday;
+
+  /// No description provided for @notif_weekdaySunday.
+  ///
+  /// In en, this message translates to:
+  /// **'Sunday'**
+  String get notif_weekdaySunday;
+
+  /// No description provided for @notif_chooseDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose day'**
+  String get notif_chooseDay;
+
+  /// No description provided for @notif_notificationTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification time'**
+  String get notif_notificationTime;
+
+  /// No description provided for @notif_slideToSetWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Slide to set your target weight'**
+  String get notif_slideToSetWeight;
+
+  /// No description provided for @notif_weightGoalQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'What weight are you working toward?'**
+  String get notif_weightGoalQuestion;
+
+  /// No description provided for @notif_frequencyQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'How often to ask you to log your weight'**
+  String get notif_frequencyQuestion;
+
+  /// No description provided for @notif_everyDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Every day'**
+  String get notif_everyDay;
+
+  /// No description provided for @notif_weekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly'**
+  String get notif_weekly;
+
+  /// No description provided for @notif_every2Weeks.
+  ///
+  /// In en, this message translates to:
+  /// **'Every 2 weeks'**
+  String get notif_every2Weeks;
+
+  /// No description provided for @notif_everyNDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {days} days'**
+  String notif_everyNDays(int days);
+
+  /// No description provided for @notif_kilograms.
+  ///
+  /// In en, this message translates to:
+  /// **'Kilograms'**
+  String get notif_kilograms;
+
+  /// No description provided for @notif_pounds.
+  ///
+  /// In en, this message translates to:
+  /// **'Pounds'**
+  String get notif_pounds;
+
+  /// No description provided for @helpFeedback_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Help & Feedback'**
+  String get helpFeedback_title;
+
+  /// No description provided for @helpFeedback_helpTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Help'**
+  String get helpFeedback_helpTab;
+
+  /// No description provided for @helpFeedback_feedbackTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Feedback'**
+  String get helpFeedback_feedbackTab;
+
+  /// No description provided for @helpFeedback_faq.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequently Asked Questions'**
+  String get helpFeedback_faq;
+
+  /// No description provided for @helpFeedback_faqSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick answers to common questions'**
+  String get helpFeedback_faqSubtitle;
+
+  /// No description provided for @helpFeedback_quickLinks.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Links'**
+  String get helpFeedback_quickLinks;
+
+  /// No description provided for @home_kGoal.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}k goal'**
+  String home_kGoal(int count);
+
+  /// No description provided for @home_kLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count}k'**
+  String home_kLabel(int count);
+
+  /// No description provided for @home_km.
+  ///
+  /// In en, this message translates to:
+  /// **'{distance} km'**
+  String home_km(String distance);
+
+  /// No description provided for @home_kcal.
+  ///
+  /// In en, this message translates to:
+  /// **'{calories} kcal'**
+  String home_kcal(String calories);
+
+  /// No description provided for @home_tapToAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to add'**
+  String get home_tapToAdd;
+
+  /// No description provided for @home_tapToRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to record'**
+  String get home_tapToRecord;
+
+  /// No description provided for @home_loggedToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Logged today'**
+  String get home_loggedToday;
+
+  /// No description provided for @home_loggedYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Logged yesterday'**
+  String get home_loggedYesterday;
+
+  /// No description provided for @home_loggedDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} days ago'**
+  String home_loggedDaysAgo(int count);
+
+  /// No description provided for @home_workoutsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} workouts'**
+  String home_workoutsCount(int count);
+
+  /// No description provided for @helpFeedback_exerciseGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercise Guide'**
+  String get helpFeedback_exerciseGuide;
+
+  /// No description provided for @helpFeedback_exerciseGuideDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse exercises with form tips and videos'**
+  String get helpFeedback_exerciseGuideDesc;
+
+  /// No description provided for @helpFeedback_changelog.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s New'**
+  String get helpFeedback_changelog;
+
+  /// No description provided for @helpFeedback_changelogDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'See the latest updates and improvements'**
+  String get helpFeedback_changelogDesc;
+
+  /// No description provided for @helpFeedback_notificationTips.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification Tips'**
+  String get helpFeedback_notificationTips;
+
+  /// No description provided for @helpFeedback_notificationTipsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure reminders to stay on track'**
+  String get helpFeedback_notificationTipsDesc;
+
+  /// No description provided for @helpFeedback_tips.
+  ///
+  /// In en, this message translates to:
+  /// **'Tips & Tricks'**
+  String get helpFeedback_tips;
+
+  /// No description provided for @helpFeedback_tipsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Science-backed advice for your fitness journey'**
+  String get helpFeedback_tipsDesc;
+
+  /// No description provided for @helpFeedback_category.
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get helpFeedback_category;
+
+  /// No description provided for @helpFeedback_bugReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Bug Report'**
+  String get helpFeedback_bugReport;
+
+  /// No description provided for @helpFeedback_featureRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Feature Request'**
+  String get helpFeedback_featureRequest;
+
+  /// No description provided for @helpFeedback_generalFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'General Feedback'**
+  String get helpFeedback_generalFeedback;
+
+  /// No description provided for @helpFeedback_question.
+  ///
+  /// In en, this message translates to:
+  /// **'Question'**
+  String get helpFeedback_question;
+
+  /// No description provided for @helpFeedback_name.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get helpFeedback_name;
+
+  /// No description provided for @helpFeedback_nameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your name'**
+  String get helpFeedback_nameHint;
+
+  /// No description provided for @helpFeedback_email.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get helpFeedback_email;
+
+  /// No description provided for @helpFeedback_emailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'your@email.com'**
+  String get helpFeedback_emailHint;
+
+  /// No description provided for @helpFeedback_subject.
+  ///
+  /// In en, this message translates to:
+  /// **'Subject'**
+  String get helpFeedback_subject;
+
+  /// No description provided for @helpFeedback_subjectHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Brief summary'**
+  String get helpFeedback_subjectHint;
+
+  /// No description provided for @helpFeedback_message.
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get helpFeedback_message;
+
+  /// No description provided for @helpFeedback_messageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell us what you think…'**
+  String get helpFeedback_messageHint;
+
+  /// No description provided for @helpFeedback_sendViaWhatsapp.
+  ///
+  /// In en, this message translates to:
+  /// **'Send via WhatsApp'**
+  String get helpFeedback_sendViaWhatsapp;
+
+  /// No description provided for @helpFeedback_sending.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening WhatsApp…'**
+  String get helpFeedback_sending;
+
+  /// No description provided for @helpFeedback_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft opened in WhatsApp! Thanks for helping us improve.'**
+  String get helpFeedback_success;
+
+  /// No description provided for @helpFeedback_required.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get helpFeedback_required;
+
+  /// No description provided for @helpFeedback_minLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum {count} characters'**
+  String helpFeedback_minLength(Object count);
+
+  /// No description provided for @helpFeedback_enterValidEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid email'**
+  String get helpFeedback_enterValidEmail;
+
+  /// No description provided for @helpFeedback_attachScreenshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Attach Screenshot'**
+  String get helpFeedback_attachScreenshot;
+
+  /// No description provided for @helpFeedback_removeScreenshot.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get helpFeedback_removeScreenshot;
+
+  /// No description provided for @helpFeedback_openInWhatsapp.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in WhatsApp'**
+  String get helpFeedback_openInWhatsapp;
+
+  /// No description provided for @helpFeedback_whatsappFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open WhatsApp. Please try again.'**
+  String get helpFeedback_whatsappFailed;
+
+  /// No description provided for @helpFeedback_openLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Open link'**
+  String get helpFeedback_openLink;
+
+  /// No description provided for @faq_howToLogWorkouts.
+  ///
+  /// In en, this message translates to:
+  /// **'How do I log workouts?'**
+  String get faq_howToLogWorkouts;
+
+  /// No description provided for @faq_howToLogWorkoutsAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to the Home screen and tap \"Start Workout\" on today\'s workout card. Complete exercises by tapping each set, and finish with \"Complete Workout\".'**
+  String get faq_howToLogWorkoutsAnswer;
+
+  /// No description provided for @faq_howToTrackSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'How do I track my steps?'**
+  String get faq_howToTrackSteps;
+
+  /// No description provided for @faq_howToTrackStepsAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Steps are tracked automatically if your device has a sensor. You can also tap the Steps card on the Home screen to manually add steps.'**
+  String get faq_howToTrackStepsAnswer;
+
+  /// No description provided for @faq_howToLogWater.
+  ///
+  /// In en, this message translates to:
+  /// **'How do I log water intake?'**
+  String get faq_howToLogWater;
+
+  /// No description provided for @faq_howToLogWaterAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the Hydration card on the Home screen to add water. Each tap adds one glass (250 ml). You can also set a daily goal in Notifications.'**
+  String get faq_howToLogWaterAnswer;
+
+  /// No description provided for @faq_howAchievementsWork.
+  ///
+  /// In en, this message translates to:
+  /// **'How do achievements work?'**
+  String get faq_howAchievementsWork;
+
+  /// No description provided for @faq_howAchievementsWorkAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Achievements unlock automatically as you hit milestones — completing workouts, logging steps, drinking water, etc. Check your progress on the Achievements card.'**
+  String get faq_howAchievementsWorkAnswer;
+
+  /// No description provided for @faq_howToChangePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'How do I change my workout plan?'**
+  String get faq_howToChangePlan;
+
+  /// No description provided for @faq_howToChangePlanAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Profile → Workout Plan to choose a different week-day combination. Your progress will be preserved.'**
+  String get faq_howToChangePlanAnswer;
+
+  /// No description provided for @faq_howToSetGoals.
+  ///
+  /// In en, this message translates to:
+  /// **'How do I set step and hydration goals?'**
+  String get faq_howToSetGoals;
+
+  /// No description provided for @faq_howToSetGoalsAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the Steps or Hydration card on the Home screen, then long-press to adjust your daily targets.'**
+  String get faq_howToSetGoalsAnswer;
+
+  /// No description provided for @faq_howNotificationsWork.
+  ///
+  /// In en, this message translates to:
+  /// **'How do notifications work?'**
+  String get faq_howNotificationsWork;
+
+  /// No description provided for @faq_howNotificationsWorkAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Profile → Notifications to enable daily reminders, missed workout nudges, achievement alerts, and hydration reminders with custom schedules.'**
+  String get faq_howNotificationsWorkAnswer;
+
+  /// No description provided for @faq_howToLogWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'How do I log my weight?'**
+  String get faq_howToLogWeight;
+
+  /// No description provided for @faq_howToLogWeightAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'On the Home screen, tap \"Log Weight\" in the Weight section to record your current weight and track progress toward your goal.'**
+  String get faq_howToLogWeightAnswer;
 }
 
 class _AppLocalizationsDelegate

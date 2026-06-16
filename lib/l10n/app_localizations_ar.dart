@@ -263,6 +263,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profile_logUpdates => 'السجل والتحديثات';
 
   @override
+  String get profile_tips => 'نصائح وحيل';
+
+  @override
   String get profile_resetTitle => 'إعادة تعيين التقدم';
 
   @override
@@ -1348,4 +1351,380 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get dialog_current => 'الحالي';
+
+  @override
+  String get notif_hydrationReminder => 'تذكير بالترطيب';
+
+  @override
+  String get notif_hydrationReminderSub =>
+      'احصل على تذكير بشرب الماء على مدار اليوم';
+
+  @override
+  String get notif_hydrationReminderConfigTitle => 'تذكير بالترطيب';
+
+  @override
+  String get notif_hydrationReminderConfigBody => 'تكوين إعدادات تذكير الترطيب';
+
+  @override
+  String get notif_hydrationEnable => 'تفعيل تذكير الترطيب';
+
+  @override
+  String get notif_hydrationEnableSub => 'تلقى تذكيرات دورية للبقاء رطباً';
+
+  @override
+  String get notif_hydrationInterval => 'فترة التذكير';
+
+  @override
+  String get notif_hydrationActiveHours => 'الساعات النشطة';
+
+  @override
+  String get notif_hydrationRemindersPerDay => 'التذكيرات في اليوم';
+
+  @override
+  String get notif_hydrationAmountPerReminder => 'المبلغ لكل تذكير';
+
+  @override
+  String notif_hydrationBasedOnGoal(String goal) {
+    return 'بناءً على هدفك اليومي ${goal}L';
+  }
+
+  @override
+  String notif_hydrationMessage(int amount) {
+    return 'وقت الترطيب! اشرب ~${amount}mL للبقاء على المسار 💧';
+  }
+
+  @override
+  String get notif_enableAchievement => 'تفعيل إشعارات الإنجاز';
+
+  @override
+  String get notif_enableAchievementSub => 'تلقَ إشعاراً عند فتح إنجاز جديد';
+
+  @override
+  String get notif_enableRecovery => 'تفعيل اقتراحات التعافي';
+
+  @override
+  String get notif_enableRecoverySub =>
+      'تلقَ تذكيراً بأخذ أيام الراحة بعد التمارين المتتالية';
+
+  @override
+  String get notif_enableQuietHours => 'تفعيل ساعات الهدوء';
+
+  @override
+  String get notif_chooseStartTime => 'اختر وقت البداية';
+
+  @override
+  String get notif_chooseEndTime => 'اختر وقت النهاية';
+
+  @override
+  String get notif_enableDailyReminder => 'تفعيل التذكير اليومي';
+
+  @override
+  String get notif_enableDailyReminderSub =>
+      'تلقَ تذكيراً يومياً لإتمام تمرينك';
+
+  @override
+  String get notif_enableMissedWorkout => 'تفعيل تذكير التمرين الفائت';
+
+  @override
+  String get notif_enableMissedWorkoutSub =>
+      'احصل على تذكير عندما تفوت تمريناً';
+
+  @override
+  String get notif_hour => 'ساعة';
+
+  @override
+  String get notif_hours => 'ساعات';
+
+  @override
+  String get notif_day => 'يوم';
+
+  @override
+  String get notif_confirmTurnOff => 'إيقاف جميع الإشعارات؟';
+
+  @override
+  String get notif_confirmTurnOffBody =>
+      'لن تتلقى أي تذكيرات تمرين أو إنجازات أو تحديثات تقدم.';
+
+  @override
+  String get notif_keepEnabled => 'إبقاء مفعلاً';
+
+  @override
+  String get notif_turnOff => 'إيقاف';
+
+  @override
+  String notif_nextScheduled(String time) {
+    return 'التالي: $time';
+  }
+
+  @override
+  String get notif_weekdayMonday => 'الاثنين';
+
+  @override
+  String get notif_weekdayTuesday => 'الثلاثاء';
+
+  @override
+  String get notif_weekdayWednesday => 'الأربعاء';
+
+  @override
+  String get notif_weekdayThursday => 'الخميس';
+
+  @override
+  String get notif_weekdayFriday => 'الجمعة';
+
+  @override
+  String get notif_weekdaySaturday => 'السبت';
+
+  @override
+  String get notif_weekdaySunday => 'الأحد';
+
+  @override
+  String get notif_chooseDay => 'اختر اليوم';
+
+  @override
+  String get notif_notificationTime => 'وقت الإشعار';
+
+  @override
+  String get notif_slideToSetWeight => 'اسحب لتعيين الوزن المستهدف';
+
+  @override
+  String get notif_weightGoalQuestion => 'إلى أي وزن تريد الوصول؟';
+
+  @override
+  String get notif_frequencyQuestion => 'كم مرة تذكرك بتسجيل وزنك';
+
+  @override
+  String get notif_everyDay => 'كل يوم';
+
+  @override
+  String get notif_weekly => 'أسبوعياً';
+
+  @override
+  String get notif_every2Weeks => 'كل أسبوعين';
+
+  @override
+  String notif_everyNDays(int days) {
+    return 'كل $days أيام';
+  }
+
+  @override
+  String get notif_kilograms => 'كيلوغرام';
+
+  @override
+  String get notif_pounds => 'أرطال';
+
+  @override
+  String get helpFeedback_title => 'المساعدة والتعليقات';
+
+  @override
+  String get helpFeedback_helpTab => 'المساعدة';
+
+  @override
+  String get helpFeedback_feedbackTab => 'التعليقات';
+
+  @override
+  String get helpFeedback_faq => 'الأسئلة الشائعة';
+
+  @override
+  String get helpFeedback_faqSubtitle => 'إجابات سريعة على الأسئلة الشائعة';
+
+  @override
+  String get helpFeedback_quickLinks => 'روابط سريعة';
+
+  @override
+  String home_kGoal(int count) {
+    return 'هدف ${count}k';
+  }
+
+  @override
+  String home_kLabel(int count) {
+    return '${count}k';
+  }
+
+  @override
+  String home_km(String distance) {
+    return '$distance كم';
+  }
+
+  @override
+  String home_kcal(String calories) {
+    return '$calories سعرة';
+  }
+
+  @override
+  String get home_tapToAdd => 'اضغط للإضافة';
+
+  @override
+  String get home_tapToRecord => 'اضغط للتسجيل';
+
+  @override
+  String get home_loggedToday => 'سُجل اليوم';
+
+  @override
+  String get home_loggedYesterday => 'سُجل أمس';
+
+  @override
+  String home_loggedDaysAgo(int count) {
+    return 'قبل $count أيام';
+  }
+
+  @override
+  String home_workoutsCount(int count) {
+    return '$count تمارين';
+  }
+
+  @override
+  String get helpFeedback_exerciseGuide => 'دليل التمارين';
+
+  @override
+  String get helpFeedback_exerciseGuideDesc => 'تصفح التمارين مع نصائح الفيديو';
+
+  @override
+  String get helpFeedback_changelog => 'ما الجديد';
+
+  @override
+  String get helpFeedback_changelogDesc => 'اطلع على آخر التحديثات والتحسينات';
+
+  @override
+  String get helpFeedback_notificationTips => 'نصائح الإشعارات';
+
+  @override
+  String get helpFeedback_notificationTipsDesc =>
+      'اضبط التذكيرات للبقاء على المسار';
+
+  @override
+  String get helpFeedback_tips => 'نصائح وحيل';
+
+  @override
+  String get helpFeedback_tipsDesc => 'نصائح علمية لرحلتك اللياقية';
+
+  @override
+  String get helpFeedback_category => 'الفئة';
+
+  @override
+  String get helpFeedback_bugReport => 'الإبلاغ عن خطأ';
+
+  @override
+  String get helpFeedback_featureRequest => 'اقتراح ميزة';
+
+  @override
+  String get helpFeedback_generalFeedback => 'تعليق عام';
+
+  @override
+  String get helpFeedback_question => 'سؤال';
+
+  @override
+  String get helpFeedback_name => 'الاسم';
+
+  @override
+  String get helpFeedback_nameHint => 'اسمك';
+
+  @override
+  String get helpFeedback_email => 'البريد الإلكتروني';
+
+  @override
+  String get helpFeedback_emailHint => 'your@email.com';
+
+  @override
+  String get helpFeedback_subject => 'الموضوع';
+
+  @override
+  String get helpFeedback_subjectHint => 'ملخص موجز';
+
+  @override
+  String get helpFeedback_message => 'الرسالة';
+
+  @override
+  String get helpFeedback_messageHint => 'أخبرنا برأيك…';
+
+  @override
+  String get helpFeedback_sendViaWhatsapp => 'الإرسال عبر واتساب';
+
+  @override
+  String get helpFeedback_sending => 'فتح واتساب…';
+
+  @override
+  String get helpFeedback_success =>
+      'تم فتح المسودة في واتساب! شكراً لمساعدتنا في التحسين.';
+
+  @override
+  String get helpFeedback_required => 'مطلوب';
+
+  @override
+  String helpFeedback_minLength(Object count) {
+    return 'الحد الأدنى $count حرف';
+  }
+
+  @override
+  String get helpFeedback_enterValidEmail => 'أدخل بريداً إلكترونياً صحيحاً';
+
+  @override
+  String get helpFeedback_attachScreenshot => 'إرفاق لقطة شاشة';
+
+  @override
+  String get helpFeedback_removeScreenshot => 'إزالة';
+
+  @override
+  String get helpFeedback_openInWhatsapp => 'فتح في واتساب';
+
+  @override
+  String get helpFeedback_whatsappFailed => 'تعذر فتح واتساب. حاول مرة أخرى.';
+
+  @override
+  String get helpFeedback_openLink => 'فتح الرابط';
+
+  @override
+  String get faq_howToLogWorkouts => 'كيف أسجل تماريني؟';
+
+  @override
+  String get faq_howToLogWorkoutsAnswer =>
+      'اذهب إلى الشاشة الرئيسية واضغط \"بدء التمرين\" على بطاقة تمرين اليوم. أكمل التمارين بالضغط على كل مجموعة، وانهِ بـ \"إنهاء التمرين\".';
+
+  @override
+  String get faq_howToTrackSteps => 'كيف أتتبع خطواتي؟';
+
+  @override
+  String get faq_howToTrackStepsAnswer =>
+      'يتم تتبع الخطوات تلقائياً إذا كان جهازك به حساس. يمكنك أيضاً الضغط على بطاقة الخطوات في الشاشة الرئيسية لإضافة خطوات يدوياً.';
+
+  @override
+  String get faq_howToLogWater => 'كيف أسجل شرب الماء؟';
+
+  @override
+  String get faq_howToLogWaterAnswer =>
+      'اضغط على بطاقة الترطيب في الشاشة الرئيسية لإضافة الماء. كل ضغطة تضيف كوباً واحداً (250 مل). يمكنك أيضاً تعيين هدف يومي في الإشعارات.';
+
+  @override
+  String get faq_howAchievementsWork => 'كيف تعمل الإنجازات؟';
+
+  @override
+  String get faq_howAchievementsWorkAnswer =>
+      'تُفتح الإنجازات تلقائياً عند بلوغ المعالم — إكمال التمارين، تسجيل الخطوات، شرب الماء، إلخ. تحقق من تقدمك على بطاقة الإنجازات.';
+
+  @override
+  String get faq_howToChangePlan => 'كيف أغيّر خطة التمرين؟';
+
+  @override
+  String get faq_howToChangePlanAnswer =>
+      'اذهب إلى الملف الشخصي ← خطة التمرين لاختيار مزيج أسبوع-يوم مختلف. سيتم الحفاظ على تقدمك.';
+
+  @override
+  String get faq_howToSetGoals => 'كيف أحدد أهداف الخطوات والترطيب؟';
+
+  @override
+  String get faq_howToSetGoalsAnswer =>
+      'اضغط على بطاقة الخطوات أو الترطيب في الشاشة الرئيسية، ثم اضغط مطولاً لتعديل أهدافك اليومية.';
+
+  @override
+  String get faq_howNotificationsWork => 'كيف تعمل الإشعارات؟';
+
+  @override
+  String get faq_howNotificationsWorkAnswer =>
+      'اذهب إلى الملف الشخصي ← الإشعارات لتفعيل التذكيرات اليومية، تنبيهات التمرين الفائت، تنبيهات الإنجازات، وتذكيرات الترطيب بجداول مخصصة.';
+
+  @override
+  String get faq_howToLogWeight => 'كيف أسجل وزني؟';
+
+  @override
+  String get faq_howToLogWeightAnswer =>
+      'في الشاشة الرئيسية، اضغط \"تسجيل الوزن\" في قسم الوزن لتسجيل وزنك الحالي وتتبع التقدم نحو هدفك.';
 }

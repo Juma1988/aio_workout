@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../services/step_history_storage.dart';
+import '../dialogs/step_goal_dialog.dart';
+import '../dialogs/hydration_goal_dialog.dart';
 
 /// Home visibility section identifiers.
 enum HomeSection {
@@ -79,6 +82,8 @@ Future<void> saveHomeSectionVisibility(HomeSection section, bool visible) async 
 
 const _stepsPerClickKey = 'steps_per_click';
 const _hydrationMLPerClickKey = 'hydration_ml_per_click';
+const _hydrationTargetLitersKey = 'hydration_target_liters';
+const _hydrationAutoCalcKey = 'hydration_auto_calc';
 
 Future<int> loadStepsPerClick() async {
   final prefs = await SharedPreferences.getInstance();
@@ -98,6 +103,27 @@ Future<int> loadHydrationMLPerClick() async {
 Future<void> saveHydrationMLPerClick(int value) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setInt(_hydrationMLPerClickKey, value);
+}
+
+Future<double> loadHydrationTarget() async {
+  final prefs = await SharedPreferences.getInstance();
+  final autoCalc = prefs.getBool(_hydrationAutoCalcKey) ?? true;
+  if (autoCalc) {
+    final weight = prefs.getDouble('profile_weight_kg') ?? 70.0;
+    return (weight * 0.035).roundToDouble() * 4 / 4; // Round to 0.25L
+  }
+  return prefs.getDouble(_hydrationTargetLitersKey) ?? 2.5;
+}
+
+Future<void> saveHydrationTarget(double liters, bool autoCalc) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setDouble(_hydrationTargetLitersKey, liters);
+  await prefs.setBool(_hydrationAutoCalcKey, autoCalc);
+}
+
+Future<bool> loadHydrationAutoCalc() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getBool(_hydrationAutoCalcKey) ?? true;
 }
 
 /// A bottom-sheet dialog that lets the user show/hide sections on the home screen.
@@ -131,6 +157,9 @@ class _HomeSettingsSheetState extends State<_HomeSettingsSheet> {
   Map<HomeSection, bool> _visibility = {};
   int _stepsPerClick = 200;
   int _hydrationMLPerClick = 250;
+  int _stepsGoal = 10000;
+  double _hydrationGoal = 2.5;
+  bool _hydrationAutoCalc = true;
   bool _loaded = false;
 
   @override
@@ -140,16 +169,23 @@ class _HomeSettingsSheetState extends State<_HomeSettingsSheet> {
   }
 
   Future<void> _load() async {
+    final storage = StepHistoryStorage();
     final results = await Future.wait([
       loadHomeSectionVisibility(),
       loadStepsPerClick(),
       loadHydrationMLPerClick(),
+      storage.loadDailyGoal(),
+      loadHydrationTarget(),
+      loadHydrationAutoCalc(),
     ]);
     if (mounted) {
       setState(() {
         _visibility = results[0] as Map<HomeSection, bool>;
         _stepsPerClick = results[1] as int;
         _hydrationMLPerClick = results[2] as int;
+        _stepsGoal = results[3] as int;
+        _hydrationGoal = results[4] as double;
+        _hydrationAutoCalc = results[5] as bool;
         _loaded = true;
       });
     }
@@ -285,6 +321,7 @@ class _HomeSettingsSheetState extends State<_HomeSettingsSheet> {
 
     return Semantics(
       label: 'Configure ${section.label.toLowerCase()} per tap',
+      hint: isSteps ? 'Long press to set daily goal' : 'Long press to set hydration goal',
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
         onTap: () async {
@@ -315,6 +352,40 @@ class _HomeSettingsSheetState extends State<_HomeSettingsSheet> {
             widget.onSettingsChanged?.call();
           }
         },
+        onLongPress: isSteps
+            ? () async {
+                final storage = StepHistoryStorage();
+                final result = await showDialog<int>(
+                  context: context,
+                  builder: (_) => StepGoalDialog(currentGoal: _stepsGoal),
+                );
+                if (result != null && mounted) {
+                  await storage.saveDailyGoal(result);
+                  setState(() => _stepsGoal = result);
+                  widget.onSettingsChanged?.call();
+                }
+              }
+            : () async {
+                final currentContext = context;
+                final prefs = await SharedPreferences.getInstance();
+                final weight = prefs.getDouble('profile_weight_kg');
+                if (!mounted) return;
+                // ignore: use_build_context_synchronously
+                final result = await showHydrationGoalDialog(
+                  currentContext,
+                  currentGoalLiters: _hydrationGoal,
+                  isAutoCalculated: _hydrationAutoCalc,
+                  weightKg: weight,
+                );
+                if (result != null && mounted) {
+                  await saveHydrationTarget(result.$1, result.$2);
+                  setState(() {
+                    _hydrationGoal = result.$1;
+                    _hydrationAutoCalc = result.$2;
+                  });
+                  widget.onSettingsChanged?.call();
+                }
+              },
         child: Padding(
           padding: const EdgeInsets.all(6),
           child: Icon(

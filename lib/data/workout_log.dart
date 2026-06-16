@@ -120,9 +120,15 @@ class ProgramProgress {
   final int currentWeek;
   final int currentDay;
 
+  /// The date (YYYY-MM-DD) when this progress was last advanced.
+  /// Used to determine how many days to catch up on app launch / midnight rollover.
+  /// Null means it has never been set (first launch or migration).
+  final String? lastAdvanceDate;
+
   const ProgramProgress({
     this.currentWeek = 1,
     this.currentDay = 1,
+    this.lastAdvanceDate,
   });
 
   ProgramProgress advance() {
@@ -130,23 +136,27 @@ class ProgramProgress {
       return ProgramProgress(
         currentWeek: currentWeek + 1,
         currentDay: 1,
+        lastAdvanceDate: lastAdvanceDate,
       );
     }
     return ProgramProgress(
       currentWeek: currentWeek,
       currentDay: currentDay + 1,
+      lastAdvanceDate: lastAdvanceDate,
     );
   }
 
   Map<String, dynamic> toJson() => {
     'currentWeek': currentWeek,
     'currentDay': currentDay,
+    if (lastAdvanceDate != null) 'lastAdvanceDate': lastAdvanceDate,
   };
 
   factory ProgramProgress.fromJson(Map<String, dynamic> json) =>
       ProgramProgress(
         currentWeek: json['currentWeek'] as int? ?? 1,
         currentDay: json['currentDay'] as int? ?? 1,
+        lastAdvanceDate: json['lastAdvanceDate'] as String?,
       );
 }
 
