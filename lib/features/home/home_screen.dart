@@ -10,20 +10,16 @@ import '../../data/exercise.dart';
 import '../../data/weight_entry.dart';
 import '../../data/workout_log.dart';
 import '../../l10n/app_localizations.dart';
-import '../../models/step_data.dart';
 import '../achievements/models/achievement_category.dart';
 import '../achievements/providers/achievement_provider.dart';
 import '../achievements/widgets/achievement_preview_card.dart';
 import '../dialogs/achivment_dialog.dart';
 import '../dialogs/exercise_progress_dialog.dart';
 import '../dialogs/weight_log_sheet.dart';
-import '../hydration/hydration_history_screen.dart';
-import '../steps/step_history_screen.dart';
 import 'models/trend_info.dart';
 import 'painters/weight_spark_painter.dart';
 import 'rest_timer.dart';
 import 'widgets/exercise_info_sheet.dart';
-import 'widgets/progress_ring.dart';
 import 'widgets/top_action.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -118,16 +114,12 @@ class _HomeScreenState extends State<HomeScreen>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   Timer? _greetingTimer;
 
-  double get _hydrationLiters => widget.hydrationLiters ?? 0.0;
-  int get _steps => widget.steps ?? 0;
   Set<String> get _completedUuids => widget.completedExerciseUuids;
   List<WeightEntry> get _weightEntries => widget.weightEntries ?? [];
   double? get _weightGoalKg => widget.weightGoalKg;
 
   late final AnimationController _entranceController;
   late final AnimationController _barsController;
-  late final AnimationController _hydrationTapController;
-  late final AnimationController _stepsTapController;
   late final AnimationController _weightTapController;
   late final AnimationController _weightChartController;
   late final Animation<double> _weightChartAnim;
@@ -167,14 +159,6 @@ class _HomeScreenState extends State<HomeScreen>
     _barsController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 820),
-    );
-    _hydrationTapController = AnimationController(
-      vsync: this,
-      duration: AppTheme.kAnimFast,
-    );
-    _stepsTapController = AnimationController(
-      vsync: this,
-      duration: AppTheme.kAnimFast,
     );
     _weightTapController = AnimationController(
       vsync: this,
@@ -226,8 +210,6 @@ class _HomeScreenState extends State<HomeScreen>
     }
     _entranceController.dispose();
     _barsController.dispose();
-    _hydrationTapController.dispose();
-    _stepsTapController.dispose();
     _weightTapController.dispose();
     _weightChartController.dispose();
     super.dispose();
@@ -272,24 +254,6 @@ class _HomeScreenState extends State<HomeScreen>
         const SizedBox(height: 16),
         _buildStaggeredSection(
           child: _buildAchievementCard(context),
-          index: sectionIndex++,
-        ),
-      ]);
-    }
-
-    if (widget.showSteps) {
-      children.addAll([
-        _buildStaggeredSection(
-          child: _buildStepsCard(context),
-          index: sectionIndex++,
-        ),
-      ]);
-    }
-
-    if (widget.showHydration) {
-      children.addAll([
-        _buildStaggeredSection(
-          child: _buildHydrationCard(context),
           index: sectionIndex++,
         ),
       ]);
@@ -424,326 +388,6 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   static const _allCategories = AchievementCategory.values;
-
-  Widget _buildStepsCard(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final orange = AppTheme.stepsOrange;
-    final goal = widget.stepsGoal;
-    final distanceKm = StepEntry.stepsToDistanceKm(_steps);
-    final calories = StepEntry.stepsToCalories(_steps);
-    final card = Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: orange.withValues(alpha: 0.25),
-          width: 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Stack(
-          alignment: AlignmentDirectional.center,
-          children: [
-          Center(
-            child: Semantics(
-              excludeSemantics: true,
-              child: Icon(
-                Icons.directions_run,
-                size: 80,
-                color: orange.withValues(alpha: 0.10),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.home_steps,
-                          style: TextStyle(
-                            color: orange,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(
-                            begin: 0.0,
-                            end: _steps.toDouble(),
-                          ),
-                          duration: AppTheme.kAnimMedium,
-                          curve: AppTheme.kEaseOut,
-                          builder: (context, animatedSteps, _) {
-                            return Text(
-                              animatedSteps.toInt().toString(),
-                              style: TextStyle(
-                                color: AppTheme.textPrimary(context),
-                                fontSize: 26,
-                                fontWeight: FontWeight.w800,
-                                height: 1.2,
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          l10n.home_kGoal(goal ~/ 1000),
-                          style: TextStyle(
-                            color: AppTheme.textSecondary(context),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  ProgressRing(
-                    progress: goal > 0 ? (_steps / goal.toDouble()).clamp(0.0, 1.0) : 0.0,
-                    centerLabel: goal > 0 ? '${((_steps / goal) * 100).round()}%' : '0%',
-                    bottomLabel: l10n.home_kLabel(goal ~/ 1000),
-                    color: orange,
-                    size: 50,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _stepMetricChip(
-                    context,
-                    Icons.straighten,
-                    l10n.home_km(distanceKm.toStringAsFixed(1)),
-                  ),
-                  const SizedBox(width: 8),
-                  _stepMetricChip(
-                    context,
-                    Icons.local_fire_department,
-                    l10n.home_kcal('$calories'),
-                  ),
-                  const Spacer(),
-                  if (widget.useSensor)
-                    Icon(
-                      Icons.sensors,
-                      size: 14,
-                      color: AppTheme.achievementGreen,
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
-
-    return Semantics(
-      label: '${l10n.home_steps}: $_steps of $goal',
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _onStepsTap(context),
-        onLongPress: () => _openStepHistory(context),
-        child: AnimatedBuilder(
-          animation: _stepsTapController,
-          child: card,
-          builder: (context, child) {
-            final scale = _reduceMotion
-                ? 1.0
-                : 0.92 + (0.08 * _stepsTapController.value);
-            return Transform.scale(
-              scale: scale,
-              child: child,
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _stepMetricChip(BuildContext context, IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppTheme.subtleFill(context, 0.08),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: AppTheme.textTertiary(context)),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(
-              color: AppTheme.textTertiary(context),
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _openStepHistory(BuildContext context) {
-    HapticFeedback.lightImpact();
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const StepHistoryScreen()),
-    );
-  }
-
-  void _onStepsTap(BuildContext context) {
-    HapticFeedback.lightImpact();
-    final newVal = _steps + widget.stepsPerClick;
-    widget.onStepsChanged?.call(newVal);
-    if (!_reduceMotion) {
-      _stepsTapController.forward(from: 0.0).then((_) {
-        if (mounted) _stepsTapController.reverse();
-      });
-    }
-  }
-
-  void _onHydrationTap(BuildContext context) {
-    HapticFeedback.lightImpact();
-    final increment = widget.hydrationMLPerClick / 1000.0;
-    final newVal = (_hydrationLiters + increment).clamp(0.0, widget.hydrationGoal);
-    widget.onHydrationChanged?.call(newVal);
-    if (!_reduceMotion) {
-      _hydrationTapController.forward(from: 0.0).then((_) {
-        if (mounted) _hydrationTapController.reverse();
-      });
-    }
-  }
-
-  Widget _buildHydrationCard(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final blue = AppTheme.hydrationBlue;
-    final progress = widget.hydrationGoal > 0 ? (_hydrationLiters / widget.hydrationGoal).clamp(0.0, 1.0) : 0.0;
-    final card = Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: blue.withValues(alpha: 0.25),
-          width: 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Stack(
-          alignment: AlignmentDirectional.center,
-          children: [
-          Center(
-            child: Semantics(
-              excludeSemantics: true,
-              child: Icon(
-                Icons.water_drop,
-                size: 80,
-                color: blue.withValues(alpha: 0.10),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.home_hydration,
-                          style: TextStyle(
-                            color: blue,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(
-                            begin: 0.0,
-                            end: _hydrationLiters,
-                          ),
-                          duration: AppTheme.kAnimMedium,
-                          curve: AppTheme.kEaseOut,
-                          builder: (context, animatedLiters, _) {
-                            return Text(
-                              '${animatedLiters.toStringAsFixed(1)}L',
-                              style: TextStyle(
-                                color: AppTheme.textPrimary(context),
-                                fontSize: 26,
-                                fontWeight: FontWeight.w800,
-                                height: 1.2,
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          l10n.home_tapToAdd,
-                          style: TextStyle(
-                            color: AppTheme.textSecondary(context),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  ProgressRing(
-                    progress: progress,
-                    centerLabel:
-                        '${(progress * 100).round()}%',
-                    bottomLabel: '${widget.hydrationGoal.toStringAsFixed(1)}L',
-                    color: blue,
-                    size: 50,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
-
-    return Semantics(
-      label: '${l10n.home_hydration}: ${_hydrationLiters.toStringAsFixed(1)} liters of ${widget.hydrationGoal.toStringAsFixed(1)}',
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _onHydrationTap(context),
-        onLongPress: () => _openHydrationHistory(context),
-        child: AnimatedBuilder(
-          animation: _hydrationTapController,
-          child: card,
-          builder: (context, child) {
-            final scale = _reduceMotion
-                ? 1.0
-                : 0.92 + (0.08 * _hydrationTapController.value);
-            return Transform.scale(
-              scale: scale,
-              child: child,
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  void _openHydrationHistory(BuildContext context) {
-    HapticFeedback.lightImpact();
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const HydrationHistoryScreen()),
-    );
-  }
 
   Widget _buildThisWeekSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
