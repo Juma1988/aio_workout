@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "895070620283",
+    "project_id": "aio-workout",
+    "storage_bucket": "aio-workout.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:895070620283:android:026b935038fb9f26d1f0de",
+        "android_client_info": {
+          "package_name": "com.i1988.aio_workout"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoqtr3fg-vqhHDdsJEzWUl9mKSsCt_AZc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

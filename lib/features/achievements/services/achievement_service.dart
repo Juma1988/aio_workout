@@ -286,7 +286,7 @@ class AchievementService {
     }
 
     final totalSteps =
-        sessions.fold(0, (sum, s) => sum + s.steps);
+        sessions.fold(todaySteps, (sum, s) => sum + s.steps);
     final totalHydration =
         sessions.fold<double>(0.0, (sum, s) => sum + s.hydrationLiters);
 

@@ -115,6 +115,7 @@ class StepCounterService {
 
   void addManualSteps(int count) {
     _todaySteps += count;
+    if (_sensorBaseline >= 0) _sensorBaseline -= count;
     _persistSteps();
     _stepController?.add(_todaySteps);
   }

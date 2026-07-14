@@ -49,6 +49,7 @@ class _WeightFollowUpConfigScreenState
 
   Future<void> _saveInterval(int days) async {
     await _repo.setWeightIntervalDays(days);
+    _service.setLocalizations(AppLocalizations.of(context));
     unawaited(_service.scheduleWeightFollowUp());
   }
 

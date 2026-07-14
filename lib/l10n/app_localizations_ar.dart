@@ -1049,20 +1049,50 @@ class AppLocalizationsAr extends AppLocalizations {
   String get notif_endTime => 'النهاية';
 
   @override
+  String get notif_dailyReminderTitle => 'تذكير التمرين اليومي';
+
+  @override
   String get notif_dailyBody => 'مستعد للتمرين 💪';
+
+  @override
+  String get notif_missedWorkoutTitle => 'تذكير التمرين الفائت';
 
   @override
   String get notif_missedBody =>
       'لقد فاتك تمرينك اليوم. حان وقت العودة للمسار!';
 
   @override
+  String get notif_recoveryTitle => 'اقتراح التعافي';
+
+  @override
   String get notif_recoveryBody => 'قد تستفيد من يوم تعافي.';
+
+  @override
+  String get notif_weeklyProgressTitle => 'التقدم الأسبوعي';
+
+  @override
+  String get notif_weeklyProgressBody => 'تحقق من تقدمك الأسبوعي في التطبيق.';
+
+  @override
+  String get notif_weightFollowUpTitle => 'متابعة الوزن';
+
+  @override
+  String get notif_weightFollowUpBody => 'حان وقت تسجيل وزنك!';
+
+  @override
+  String get notif_hydrationReminderTitle => 'تذكير بالترطيب';
 
   @override
   String get notif_restCompleteTitle => 'اكتملت الراحة';
 
   @override
   String get notif_restCompleteBody => 'اكتملت الراحة. ابدأ المجموعة التالية.';
+
+  @override
+  String get notif_testTitle => 'إشعار اختباري';
+
+  @override
+  String get notif_testBody => 'تم إرسال الإشعار الاختباري';
 
   @override
   String get general_saveError => 'تعذر حفظ التمرين. حاول مرة أخرى.';

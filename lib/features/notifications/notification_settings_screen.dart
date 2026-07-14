@@ -52,6 +52,7 @@ class _NotificationSettingsScreenState
     try {
       final data = await _repo.loadAll();
       if (!mounted) return;
+      _service.setLocalizations(AppLocalizations.of(context));
       setState(() {
         _masterEnabled = data['master'] as bool;
         _dailyReminder = data['dailyReminder'] as bool;
@@ -68,6 +69,44 @@ class _NotificationSettingsScreenState
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Shows a rationale dialog explaining why notification permission is needed.
+  Future<bool> _showNotificationRationale() async {
+    final l10n = AppLocalizations.of(context);
+    final primaryColor = Theme.of(context).colorScheme.primary;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.notifications_active_outlined,
+                color: primaryColor),
+            const SizedBox(width: 10),
+            Text(l10n.notif_title),
+          ],
+        ),
+        content: const Text(
+          'We need permission to send you workout reminders, '
+          'achievement alerts, and hydration nudges.\n\n'
+          'You can customize which notifications you receive below.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.notif_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l10n.notif_on),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   // ── Toggle handlers ──
@@ -93,17 +132,31 @@ class _NotificationSettingsScreenState
       );
       if (confirmed != false) return;
     }
-    setState(() => _masterEnabled = value);
-    await _repo.setMasterEnabled(value);
     if (value) {
-      unawaited(_service.rescheduleAll());
+      // Show rationale dialog before requesting notification permission
+      final proceed = await _showNotificationRationale();
+      if (proceed == true) {
+        if (!mounted) return;
+        setState(() => _masterEnabled = true);
+        await _repo.setMasterEnabled(true);
+        _service.setLocalizations(AppLocalizations.of(context));
+        await _service.requestPermissions();
+        unawaited(_service.rescheduleAll());
+      } else {
+        if (!mounted) return;
+        setState(() => _masterEnabled = false);
+        await _repo.setMasterEnabled(false);
+      }
     } else {
+      setState(() => _masterEnabled = false);
+      await _repo.setMasterEnabled(false);
       unawaited(_service.cancelAll());
     }
   }
 
   Future<void> _sendTestNotification() async {
     final l10n = AppLocalizations.of(context);
+    _service.setLocalizations(l10n);
     try {
       await _service.sendTestNotification();
       if (mounted) {
@@ -131,6 +184,7 @@ class _NotificationSettingsScreenState
             if (mounted) {
               setState(() => _dailyReminder = enabled);
             }
+            _service.setLocalizations(AppLocalizations.of(context));
             unawaited(_service.scheduleDailyReminder());
           },
         ),
@@ -153,6 +207,7 @@ class _NotificationSettingsScreenState
             if (mounted) {
               setState(() => _missedWorkout = enabled);
             }
+            _service.setLocalizations(AppLocalizations.of(context));
             unawaited(_service.scheduleMissedWorkoutReminder());
           },
         ),
@@ -184,15 +239,16 @@ class _NotificationSettingsScreenState
       context: context,
       builder: (ctx) => RecoveryDialog(
         initialEnabled: _recovery,
-        onSave: (enabled) async {
-          await _repo.setRecoveryEnabled(enabled);
-          if (mounted) {
-            setState(() => _recovery = enabled);
-          }
-          unawaited(_service.scheduleRecoverySuggestion());
-        },
-      ),
-    );
+          onSave: (enabled) async {
+            await _repo.setRecoveryEnabled(enabled);
+            if (mounted) {
+              setState(() => _recovery = enabled);
+            }
+            _service.setLocalizations(AppLocalizations.of(context));
+            unawaited(_service.scheduleRecoverySuggestion());
+          },
+        ),
+      );
   }
 
   void _showHydrationReminderDialog() {
@@ -221,6 +277,7 @@ class _NotificationSettingsScreenState
             if (mounted) {
               setState(() => _hydrationReminder = enabled);
             }
+            _service.setLocalizations(AppLocalizations.of(context));
             unawaited(_service.scheduleHydrationReminders());
           },
         ),

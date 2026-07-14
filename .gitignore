@@ -71,6 +71,11 @@ app.*.symbols
 # Build output
 build/
 
+# Environment variables
+backend/.env
+
 # Android signing
 android/app/signing/
 android/key.properties
+
+testsprite_tests\tmp\config.json

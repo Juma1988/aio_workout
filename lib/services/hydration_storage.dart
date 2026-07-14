@@ -4,6 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/hydration_data.dart';
 import '../services/workout_storage_service.dart' show dateKey;
 
+/// Whether [seedMockData] should generate fake records for development/testing.
+/// Always false in release builds — users never see fabricated data.
+bool _debugAllowMockData = false;
+
 class HydrationStorage {
   static const _hydrationHistoryKey = 'hydration_history';
   static const _dailyGoalKey = 'hydration_daily_goal';
@@ -262,6 +266,7 @@ class HydrationStorage {
   // ── Mock data ──
 
   Future<void> seedMockData() async {
+    if (kReleaseMode || !_debugAllowMockData) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();

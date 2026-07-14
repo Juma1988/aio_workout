@@ -366,13 +366,11 @@ class _HomeSettingsSheetState extends State<_HomeSettingsSheet> {
                 }
               }
             : () async {
-                final currentContext = context;
                 final prefs = await SharedPreferences.getInstance();
                 final weight = prefs.getDouble('profile_weight_kg');
-                if (!mounted) return;
-                // ignore: use_build_context_synchronously
+                if (!context.mounted) return;
                 final result = await showHydrationGoalDialog(
-                  currentContext,
+                  context,
                   currentGoalLiters: _hydrationGoal,
                   isAutoCalculated: _hydrationAutoCalc,
                   weightKg: weight,

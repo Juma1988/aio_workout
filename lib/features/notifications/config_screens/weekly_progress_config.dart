@@ -44,6 +44,7 @@ class _WeeklyProgressConfigScreenState
 
   Future<void> _saveDay(int day) async {
     await _repo.setWeeklyProgressDay(day);
+    _service.setLocalizations(AppLocalizations.of(context));
     unawaited(_service.scheduleWeeklyProgress());
   }
 
@@ -56,6 +57,7 @@ class _WeeklyProgressConfigScreenState
     if (picked != null && mounted) {
       setState(() => _selectedTime = picked);
       await _repo.setWeeklyProgressTime(picked);
+      _service.setLocalizations(AppLocalizations.of(context));
       unawaited(_service.scheduleWeeklyProgress());
     }
   }

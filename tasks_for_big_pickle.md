@@ -1,5 +1,16 @@
 # AIO Workout — Task Instructions for Big Pickle
 
+## ✅ ALL 8 TASKS COMPLETE
+- **Firebase Setup** — Added `firebase_core` to pubspec.yaml, Google Services plugin to Android build files, `google-services.json` placed in `android/app/`, initialized in `main.dart`.
+- **Task 1** — Steps & Hydration card height equalized with `ConstrainedBox(minHeight: 130)`.
+- **Task 2** — Stat cards overflow fixed: `LayoutBuilder` + computed `cardWidth`, reduced padding/icons/font.
+- **Task 5** — Replaced Appearance dialog with inline Home Screen toggles (3 cards) in Profile → Preferences.
+- **Task 6** — History subtitle "Day X" moved from page header into current week's card.
+- **Task 7** — Exercise timer redesigned: big set number (72px), SET pill, circular progress ring, 72px action buttons, rest/hold timer with 64px monospace + countdown ring, celebration animation.
+- **Tasks 3,4,8** — Already complete before this session.
+
+---
+
 ## Critical Rules
 - Read EVERY file you modify before editing it.
 - Run `flutter analyze` after each task. Fix ALL issues before moving on.

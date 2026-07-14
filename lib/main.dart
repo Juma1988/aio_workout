@@ -1,7 +1,10 @@
+import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'l10n/app_localizations.dart';
 
 import 'core/clock.dart';
@@ -15,6 +18,14 @@ import 'services/workout_storage_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp();
+
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
   final localeProvider = LocaleProvider();
   await localeProvider.loadSavedLocale();
@@ -33,8 +44,8 @@ Future<void> _initNotifications(LocaleProvider localeProvider) async {
   try {
     final service = NotificationService();
     await service.initialize();
-  } catch (e) {
-    debugPrint('Notification init failed (non-fatal): $e');
+  } catch (e, s) {
+    FirebaseCrashlytics.instance.recordError(e, s, fatal: false);
   }
 }
 

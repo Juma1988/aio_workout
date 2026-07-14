@@ -277,30 +277,19 @@ class _HomeScreenState extends State<HomeScreen>
       ]);
     }
 
-    if (widget.showSteps || widget.showHydration) {
-      final rowChildren = <Widget>[];
-      if (widget.showSteps) {
-        rowChildren.add(Expanded(child: _buildStepsCard(context)));
-      }
-      if (widget.showSteps && widget.showHydration) {
-        rowChildren.add(const SizedBox(width: 10));
-      }
-      if (widget.showHydration) {
-        rowChildren.add(Expanded(child: _buildHydrationCard(context)));
-      }
-
+    if (widget.showSteps) {
       children.addAll([
-        const SizedBox(height: 16),
         _buildStaggeredSection(
-          child: IntrinsicHeight(
-            child: SizedBox(
-              width: double.infinity,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: rowChildren,
-              ),
-            ),
-          ),
+          child: _buildStepsCard(context),
+          index: sectionIndex++,
+        ),
+      ]);
+    }
+
+    if (widget.showHydration) {
+      children.addAll([
+        _buildStaggeredSection(
+          child: _buildHydrationCard(context),
           index: sectionIndex++,
         ),
       ]);
@@ -326,9 +315,8 @@ class _HomeScreenState extends State<HomeScreen>
       ]);
     }
 
-    children.addAll([
-      const SizedBox(height: 16),
-      _buildStaggeredSection(
+      children.addAll([
+        _buildStaggeredSection(
         child: _buildTodaysWorkoutSection(context),
         index: sectionIndex++,
       ),
@@ -443,116 +431,114 @@ class _HomeScreenState extends State<HomeScreen>
     final goal = widget.stepsGoal;
     final distanceKm = StepEntry.stepsToDistanceKm(_steps);
     final calories = StepEntry.stepsToCalories(_steps);
-    final card = SizedBox(
-      height: 130,
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: orange.withValues(alpha: 0.25),
-            width: 1,
-          ),
+    final card = Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: orange.withValues(alpha: 0.25),
+          width: 1,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Stack(
-            alignment: AlignmentDirectional.center,
-            children: [
-            Center(
-              child: Semantics(
-                excludeSemantics: true,
-                child: Icon(
-                  Icons.directions_run,
-                  size: 80,
-                  color: orange.withValues(alpha: 0.10),
-                ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Stack(
+          alignment: AlignmentDirectional.center,
+          children: [
+          Center(
+            child: Semantics(
+              excludeSemantics: true,
+              child: Icon(
+                Icons.directions_run,
+                size: 80,
+                color: orange.withValues(alpha: 0.10),
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.home_steps,
-                            style: TextStyle(
-                              color: orange,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.home_steps,
+                          style: TextStyle(
+                            color: orange,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
                           ),
-                          const SizedBox(height: 2),
-                          TweenAnimationBuilder<double>(
-                            tween: Tween(
-                              begin: 0.0,
-                              end: _steps.toDouble(),
-                            ),
-                            duration: AppTheme.kAnimMedium,
-                            curve: AppTheme.kEaseOut,
-                            builder: (context, animatedSteps, _) {
-                              return Text(
-                                animatedSteps.toInt().toString(),
-                                style: TextStyle(
-                                  color: AppTheme.textPrimary(context),
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.2,
-                                ),
-                              );
-                            },
+                        ),
+                        const SizedBox(height: 2),
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(
+                            begin: 0.0,
+                            end: _steps.toDouble(),
                           ),
-                          Text(
-                            l10n.home_kGoal(goal ~/ 1000),
-                            style: TextStyle(
-                              color: AppTheme.textSecondary(context),
-                              fontSize: 12,
-                            ),
+                          duration: AppTheme.kAnimMedium,
+                          curve: AppTheme.kEaseOut,
+                          builder: (context, animatedSteps, _) {
+                            return Text(
+                              animatedSteps.toInt().toString(),
+                              style: TextStyle(
+                                color: AppTheme.textPrimary(context),
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                height: 1.2,
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          l10n.home_kGoal(goal ~/ 1000),
+                          style: TextStyle(
+                            color: AppTheme.textSecondary(context),
+                            fontSize: 13,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    ProgressRing(
-                      progress: goal > 0 ? (_steps / goal.toDouble()).clamp(0.0, 1.0) : 0.0,
-                      centerLabel: goal > 0 ? '${((_steps / goal) * 100).round()}%' : '0%',
-                      bottomLabel: l10n.home_kLabel(goal ~/ 1000),
-                      color: orange,
-                      size: 50,
+                  ),
+                  const SizedBox(width: 10),
+                  ProgressRing(
+                    progress: goal > 0 ? (_steps / goal.toDouble()).clamp(0.0, 1.0) : 0.0,
+                    centerLabel: goal > 0 ? '${((_steps / goal) * 100).round()}%' : '0%',
+                    bottomLabel: l10n.home_kLabel(goal ~/ 1000),
+                    color: orange,
+                    size: 50,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _stepMetricChip(
+                    context,
+                    Icons.straighten,
+                    l10n.home_km(distanceKm.toStringAsFixed(1)),
+                  ),
+                  const SizedBox(width: 8),
+                  _stepMetricChip(
+                    context,
+                    Icons.local_fire_department,
+                    l10n.home_kcal('$calories'),
+                  ),
+                  const Spacer(),
+                  if (widget.useSensor)
+                    Icon(
+                      Icons.sensors,
+                      size: 14,
+                      color: AppTheme.achievementGreen,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _stepMetricChip(
-                      context,
-                      Icons.straighten,
-                      l10n.home_km(distanceKm.toStringAsFixed(1)),
-                    ),
-                    const SizedBox(width: 8),
-                    _stepMetricChip(
-                      context,
-                      Icons.local_fire_department,
-                      l10n.home_kcal('$calories'),
-                    ),
-                    const Spacer(),
-                    if (widget.useSensor)
-                      Icon(
-                        Icons.sensors,
-                        size: 14,
-                        color: AppTheme.achievementGreen,
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     ),
   );
@@ -639,90 +625,92 @@ class _HomeScreenState extends State<HomeScreen>
     final l10n = AppLocalizations.of(context);
     final blue = AppTheme.hydrationBlue;
     final progress = widget.hydrationGoal > 0 ? (_hydrationLiters / widget.hydrationGoal).clamp(0.0, 1.0) : 0.0;
-    final card = SizedBox(
-      height: 130,
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: blue.withValues(alpha: 0.25),
-            width: 1,
-          ),
+    final card = Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: blue.withValues(alpha: 0.25),
+          width: 1,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Stack(
-            alignment: AlignmentDirectional.center,
-            children: [
-            Center(
-              child: Semantics(
-                excludeSemantics: true,
-                child: Icon(
-                  Icons.water_drop,
-                  size: 80,
-                  color: blue.withValues(alpha: 0.10),
-                ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Stack(
+          alignment: AlignmentDirectional.center,
+          children: [
+          Center(
+            child: Semantics(
+              excludeSemantics: true,
+              child: Icon(
+                Icons.water_drop,
+                size: 80,
+                color: blue.withValues(alpha: 0.10),
               ),
             ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.home_hydration,
-                        style: TextStyle(
-                          color: blue,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.home_hydration,
+                          style: TextStyle(
+                            color: blue,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      TweenAnimationBuilder<double>(
-                        tween: Tween(
-                          begin: 0.0,
-                          end: _hydrationLiters,
+                        const SizedBox(height: 2),
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(
+                            begin: 0.0,
+                            end: _hydrationLiters,
+                          ),
+                          duration: AppTheme.kAnimMedium,
+                          curve: AppTheme.kEaseOut,
+                          builder: (context, animatedLiters, _) {
+                            return Text(
+                              '${animatedLiters.toStringAsFixed(1)}L',
+                              style: TextStyle(
+                                color: AppTheme.textPrimary(context),
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                height: 1.2,
+                              ),
+                            );
+                          },
                         ),
-                        duration: AppTheme.kAnimMedium,
-                        curve: AppTheme.kEaseOut,
-                        builder: (context, animatedLiters, _) {
-                          return Text(
-                            '${animatedLiters.toStringAsFixed(1)}L',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary(context),
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              height: 1.2,
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        l10n.home_tapToAdd,
-                        style: TextStyle(
-                          color: AppTheme.textSecondary(context),
-                          fontSize: 13,
+                        const SizedBox(height: 2),
+                        Text(
+                          l10n.home_tapToAdd,
+                          style: TextStyle(
+                            color: AppTheme.textSecondary(context),
+                            fontSize: 13,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                ProgressRing(
-                  progress: progress,
-                  centerLabel:
-                      '${(progress * 100).round()}%',
-                  bottomLabel: '${widget.hydrationGoal.toStringAsFixed(1)}L',
-                  color: blue,
-                  size: 50,
-                ),
-              ],
-            ),
-          ],
-        ),
+                  const SizedBox(width: 10),
+                  ProgressRing(
+                    progress: progress,
+                    centerLabel:
+                        '${(progress * 100).round()}%',
+                    bottomLabel: '${widget.hydrationGoal.toStringAsFixed(1)}L',
+                    color: blue,
+                    size: 50,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     ),
   );

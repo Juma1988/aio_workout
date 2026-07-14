@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
+import '../../../l10n/app_localizations.dart';
 import 'notification_repository.dart';
 import '../../profile/home_settings_dialog.dart';
 
@@ -13,6 +14,14 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
   final NotificationRepository _repo = NotificationRepository();
   bool _initialized = false;
+  AppLocalizations? _l10n;
+
+  /// Set the current localizations for localized notification strings.
+  /// Should be called before scheduling any notifications, especially
+  /// after a locale change.
+  void setLocalizations(AppLocalizations l10n) {
+    _l10n = l10n;
+  }
 
   // ── Notification channel IDs ──
   static const _defaultChannel = 'workout_reminders';
@@ -157,10 +166,10 @@ class NotificationService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
-    await _plugin.zonedSchedule(
+    await _safeZonedSchedule(
       _dailyReminderId,
-      'Daily Workout Reminder',
-      'Ready to crush it \u{1F4AA}',
+      _l10n?.notif_dailyReminderTitle ?? 'Daily Workout Reminder',
+      _l10n?.notif_dailyBody ?? 'Ready to crush it \u{1F4AA}',
       tz.TZDateTime.from(scheduledDate, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -193,10 +202,10 @@ class NotificationService {
     final delayHours = await _repo.missedWorkoutDelayHours;
     final fireTime = DateTime.now().add(Duration(hours: delayHours));
 
-    await _plugin.zonedSchedule(
+    await _safeZonedSchedule(
       _missedWorkoutId,
-      'Missed Workout Reminder',
-      'You missed your workout today. Time to get back on track!',
+      _l10n?.notif_missedWorkoutTitle ?? 'Missed Workout Reminder',
+      _l10n?.notif_missedBody ?? 'You missed your workout today. Time to get back on track!',
       tz.TZDateTime.from(fireTime, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -223,7 +232,7 @@ class NotificationService {
 
     await _ensureChannels();
 
-    await _plugin.show(
+    await _safeShow(
       _achievementId + title.hashCode,
       title,
       description,
@@ -255,10 +264,10 @@ class NotificationService {
     final fireTime = DateTime(now.year, now.month, now.day, 20, 0);
     if (fireTime.isBefore(now)) return;
 
-    await _plugin.zonedSchedule(
+    await _safeZonedSchedule(
       _recoveryId,
-      'Recovery Suggestion',
-      'You may benefit from a recovery day.',
+      _l10n?.notif_recoveryTitle ?? 'Recovery Suggestion',
+      _l10n?.notif_recoveryBody ?? 'You may benefit from a recovery day.',
       tz.TZDateTime.from(fireTime, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -295,9 +304,10 @@ class NotificationService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
-    await _plugin.zonedSchedule(
+    final weeklyTitle = _l10n?.notif_weeklyProgressTitle ?? 'Weekly Progress';
+    await _safeZonedSchedule(
       _weeklyProgressId,
-      'Weekly Progress',
+      weeklyTitle,
       _buildWeeklySummary(),
       tz.TZDateTime.from(scheduledDate, tz.local),
       const NotificationDetails(
@@ -321,7 +331,7 @@ class NotificationService {
 
   String _buildWeeklySummary() {
     // Placeholder — in production, compute from stored sessions
-    return 'Check your weekly progress in the app.';
+    return _l10n?.notif_weeklyProgressBody ?? 'Check your weekly progress in the app.';
   }
 
   // ── Schedule: Weight Follow-Up ──
@@ -337,10 +347,10 @@ class NotificationService {
     final now = DateTime.now();
     final fireTime = now.add(Duration(days: interval));
 
-    await _plugin.zonedSchedule(
+    await _safeZonedSchedule(
       _weightFollowUpId,
-      'Weight Follow-Up',
-      'Time to log your weight!',
+      _l10n?.notif_weightFollowUpTitle ?? 'Weight Follow-Up',
+      _l10n?.notif_weightFollowUpBody ?? 'Time to log your weight!',
       tz.TZDateTime.from(fireTime, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -388,11 +398,13 @@ class NotificationService {
         final remindersPerDay = (wakingHours * 60 / intervalMinutes).floor();
         final amountPerReminder = remindersPerDay > 0 ? (hydrationGoal / remindersPerDay * 1000).round() : 0;
         
-        final message = 'Time to hydrate! Drink ~${amountPerReminder}mL to stay on track 💧';
+        final message = _l10n?.notif_hydrationMessage(amountPerReminder)
+            ?? 'Time to hydrate! Drink ~${amountPerReminder}mL to stay on track 💧';
         
-        await _plugin.zonedSchedule(
+        final hydrationTitle = _l10n?.notif_hydrationReminderTitle ?? 'Hydration Reminder';
+        await _safeZonedSchedule(
           _hydrationReminderBaseId + notifIndex,
-          'Hydration Reminder',
+          hydrationTitle,
           message,
           tz.TZDateTime.from(fireTime, tz.local),
           const NotificationDetails(
@@ -423,10 +435,10 @@ class NotificationService {
 
     final fireTime = DateTime.now().add(Duration(seconds: secondsRemaining));
 
-    await _plugin.zonedSchedule(
+    await _safeZonedSchedule(
       _restTimerCompleteId,
-      'Rest Complete',
-      'Rest complete. Start next set.',
+      _l10n?.notif_restCompleteTitle ?? 'Rest Complete',
+      _l10n?.notif_restCompleteBody ?? 'Rest complete. Start next set.',
       tz.TZDateTime.from(fireTime, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -455,10 +467,10 @@ class NotificationService {
   Future<void> sendTestNotification() async {
     await _ensureChannels();
 
-    await _plugin.show(
+    await _safeShow(
       _testNotificationId,
-      'Test Notification',
-      'Test Notification sent',
+      _l10n?.notif_testTitle ?? 'Test Notification',
+      _l10n?.notif_testBody ?? 'Test Notification sent',
       const NotificationDetails(
         android: AndroidNotificationDetails(
           _testChannel,
@@ -481,6 +493,48 @@ class NotificationService {
 
   Future<void> _cancelNotificationById(int id) async {
     await _plugin.cancel(id);
+  }
+
+  // ── Safe wrappers ──
+  Future<void> _safeZonedSchedule(
+    int id,
+    String? title,
+    String? body,
+    tz.TZDateTime date,
+    NotificationDetails details, {
+    required AndroidScheduleMode androidScheduleMode,
+    required UILocalNotificationDateInterpretation uiLocalNotificationDateInterpretation,
+    DateTimeComponents? matchDateTimeComponents,
+  }) async {
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        title,
+        body,
+        date,
+        details,
+        androidScheduleMode: androidScheduleMode,
+        uiLocalNotificationDateInterpretation:
+            uiLocalNotificationDateInterpretation,
+        matchDateTimeComponents: matchDateTimeComponents,
+      );
+    } catch (e) {
+      print('[Notifications] Schedule failed for $id: $e');
+    }
+  }
+
+  Future<void> _safeShow(
+    int id,
+    String? title,
+    String? body,
+    NotificationDetails details, {
+    String? payload,
+  }) async {
+    try {
+      await _plugin.show(id, title, body, details, payload: payload);
+    } catch (e) {
+      print('[Notifications] Show failed for $id: $e');
+    }
   }
 
   // ── Reschedule all (called on master toggle, language change, etc.) ──

@@ -202,6 +202,46 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     }
   }
 
+  /// Shows a rationale dialog before picking from camera,
+  /// then proceeds with image capture.
+  Future<void> _pickImageWithRationale(ImageSource source) async {
+    if (source == ImageSource.camera) {
+      final l10n = AppLocalizations.of(context);
+      final allowed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.camera_alt_rounded,
+                  color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
+              Text(l10n.dialog_camera),
+            ],
+          ),
+          content: Text(
+            'We need camera access to take your profile photo.\n\n'
+            'Your photo will only be stored on this device and used within the app.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(l10n.dialog_cancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text('Allow'),
+            ),
+          ],
+        ),
+      );
+      if (allowed != true) return;
+    }
+    await _pickImage(source);
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     final xFile = await _picker.pickImage(
       source: source,
@@ -253,7 +293,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                   label: l10n.dialog_camera,
                   onTap: () {
                     Navigator.of(ctx).pop();
-                    _pickImage(ImageSource.camera);
+                    _pickImageWithRationale(ImageSource.camera);
                   },
                 ),
                 _imageSourceButton(

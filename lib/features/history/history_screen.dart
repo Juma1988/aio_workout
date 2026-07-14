@@ -68,16 +68,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              '${l10n.history_week} ${_progress.currentWeek} \u2022 ${l10n.history_day} ${_progress.currentDay}',
-              style: TextStyle(
-                color: AppTheme.textTertiary(context),
-                fontSize: 14,
-              ),
-            ),
-          ),
           const SizedBox(height: 12),
           if (_loading)
             const Expanded(
@@ -503,6 +493,14 @@ class _WeekCardState extends State<_WeekCard> {
                             fontSize: 13,
                           ),
                         ),
+                        if (widget.isCurrentWeek)
+                          Text(
+                            'Day ${widget.currentDay}',
+                            style: TextStyle(
+                              color: AppTheme.textTertiary(context),
+                              fontSize: 12,
+                            ),
+                          ),
                       ],
                     ),
                   ),

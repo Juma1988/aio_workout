@@ -98,9 +98,10 @@ class AchievementPreviewCard extends StatelessWidget {
                 style: TextStyle(
                   color: AppTheme.achievementGreen,
                   fontWeight: FontWeight.w600,
-                  fontSize: 14,
+                  fontSize: 13,
                 ),
               ),
+              const SizedBox(height: 2),
               Text(
                 '$count / $totalCount unlocked',
                 style: TextStyle(
