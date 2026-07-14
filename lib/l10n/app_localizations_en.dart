@@ -1054,20 +1054,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notif_endTime => 'End';
 
   @override
+  String get notif_dailyReminderTitle => 'Daily Workout Reminder';
+
+  @override
   String get notif_dailyBody => 'Ready to crush it 💪';
+
+  @override
+  String get notif_missedWorkoutTitle => 'Missed Workout Reminder';
 
   @override
   String get notif_missedBody =>
       'You missed your workout today. Time to get back on track!';
 
   @override
+  String get notif_recoveryTitle => 'Recovery Suggestion';
+
+  @override
   String get notif_recoveryBody => 'You may benefit from a recovery day.';
+
+  @override
+  String get notif_weeklyProgressTitle => 'Weekly Progress';
+
+  @override
+  String get notif_weeklyProgressBody =>
+      'Check your weekly progress in the app.';
+
+  @override
+  String get notif_weightFollowUpTitle => 'Weight Follow-Up';
+
+  @override
+  String get notif_weightFollowUpBody => 'Time to log your weight!';
+
+  @override
+  String get notif_hydrationReminderTitle => 'Hydration Reminder';
 
   @override
   String get notif_restCompleteTitle => 'Rest Complete';
 
   @override
   String get notif_restCompleteBody => 'Rest complete. Start next set.';
+
+  @override
+  String get notif_testTitle => 'Test Notification';
+
+  @override
+  String get notif_testBody => 'Test Notification sent';
 
   @override
   String get general_saveError => 'Couldn\'t save workout. Please try again.';

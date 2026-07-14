@@ -453,6 +453,7 @@ class _HydrationHistoryScreenState extends State<HydrationHistoryScreen>
   Future<void> _openGoalDialog() async {
     HapticFeedback.lightImpact();
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     final weight = prefs.getDouble('profile_weight_kg');
     final result = await showHydrationGoalDialog(
       context,

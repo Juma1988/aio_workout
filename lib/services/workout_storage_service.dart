@@ -4,6 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/weight_entry.dart';
 import '../data/workout_log.dart';
 
+/// Whether [seedMockData] should generate fake records for development/testing.
+/// Always false in release builds — users never see fabricated data.
+bool _debugAllowMockData = false;
+
 /// Returns the local date as a YYYY-MM-DD string, avoiding timezone ambiguity.
 String dateKey(DateTime date) =>
     '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -240,6 +244,7 @@ class WorkoutStorageService {
   }
 
   Future<void> seedMockData() async {
+    if (kReleaseMode || !_debugAllowMockData) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();

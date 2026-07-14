@@ -1,4 +1,4 @@
-package com.example.aio_workout
+package com.i1988.aio_workout
 
 import android.content.Context
 import android.hardware.Sensor

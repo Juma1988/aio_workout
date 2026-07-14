@@ -2120,11 +2120,23 @@ abstract class AppLocalizations {
   /// **'End'**
   String get notif_endTime;
 
+  /// No description provided for @notif_dailyReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily Workout Reminder'**
+  String get notif_dailyReminderTitle;
+
   /// No description provided for @notif_dailyBody.
   ///
   /// In en, this message translates to:
   /// **'Ready to crush it 💪'**
   String get notif_dailyBody;
+
+  /// No description provided for @notif_missedWorkoutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed Workout Reminder'**
+  String get notif_missedWorkoutTitle;
 
   /// No description provided for @notif_missedBody.
   ///
@@ -2132,11 +2144,47 @@ abstract class AppLocalizations {
   /// **'You missed your workout today. Time to get back on track!'**
   String get notif_missedBody;
 
+  /// No description provided for @notif_recoveryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery Suggestion'**
+  String get notif_recoveryTitle;
+
   /// No description provided for @notif_recoveryBody.
   ///
   /// In en, this message translates to:
   /// **'You may benefit from a recovery day.'**
   String get notif_recoveryBody;
+
+  /// No description provided for @notif_weeklyProgressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly Progress'**
+  String get notif_weeklyProgressTitle;
+
+  /// No description provided for @notif_weeklyProgressBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your weekly progress in the app.'**
+  String get notif_weeklyProgressBody;
+
+  /// No description provided for @notif_weightFollowUpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Weight Follow-Up'**
+  String get notif_weightFollowUpTitle;
+
+  /// No description provided for @notif_weightFollowUpBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to log your weight!'**
+  String get notif_weightFollowUpBody;
+
+  /// No description provided for @notif_hydrationReminderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hydration Reminder'**
+  String get notif_hydrationReminderTitle;
 
   /// No description provided for @notif_restCompleteTitle.
   ///
@@ -2149,6 +2197,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rest complete. Start next set.'**
   String get notif_restCompleteBody;
+
+  /// No description provided for @notif_testTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Notification'**
+  String get notif_testTitle;
+
+  /// No description provided for @notif_testBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Test Notification sent'**
+  String get notif_testBody;
 
   /// No description provided for @general_saveError.
   ///

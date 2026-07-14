@@ -217,6 +217,46 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       }
     });
     if (_useSensor) {
+      await _requestActivityRecognition();
+    }
+  }
+
+  /// Shows a rationale dialog before requesting ACTIVITY_RECOGNITION permission.
+  Future<void> _requestActivityRecognition() async {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.directions_run,
+                color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 10),
+            Text(l10n.home_steps),
+          ],
+        ),
+        content: const Text(
+          'We use your device\'s motion sensor to track your daily steps. '
+          'This helps you monitor your activity and earn step-based achievements.\n\n'
+          'No location data is collected. Step data stays on this device.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l10n.profile_resetCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Allow'),
+          ),
+        ],
+      ),
+    );
+    if (proceed == true && mounted) {
       await _stepService.startListening();
     }
   }
@@ -354,7 +394,11 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       (s) => dateKey(s.date) == todayStr,
     );
     if (!hasTodaySession) {
-      await NotificationService().scheduleMissedWorkoutReminder();
+      final notifService = NotificationService();
+      if (mounted) {
+        notifService.setLocalizations(AppLocalizations.of(context));
+      }
+      await notifService.scheduleMissedWorkoutReminder();
     }
   }
 
@@ -379,6 +423,11 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   void _onStepsChanged(int v) {
     setState(() => _steps = v);
     _stepStorage.saveTodaySteps(v);
+    _storageService.saveTodayState(
+      steps: v,
+      hydration: _hydrationLiters,
+      completedUuids: _completedExerciseUuids,
+    );
   }
 
   Future<void> _loadHomeSettings() async {
@@ -480,6 +529,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       await _onNewDay(today);
     }
 
+    if (!mounted) return;
     final now = DateTime.now();
     final focus = getLocalizedFocus(
         AppLocalizations.of(context), _progress.currentWeek, _progress.currentDay);
@@ -515,6 +565,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       achievementsUnlocked: [],
     );
 
+    if (!mounted) return;
     final provider = context.read<AchievementProvider>();
 
     try {
@@ -536,6 +587,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
       // Notification triggers
       final notifService = NotificationService();
+      notifService.setLocalizations(AppLocalizations.of(context));
       await notifService.cancelAll();
       for (final id in fresh) {
         final def = provider.definitions.where((a) => a.id == id).firstOrNull;

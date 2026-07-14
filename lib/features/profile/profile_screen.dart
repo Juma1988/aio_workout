@@ -23,10 +23,11 @@ import '../dialogs/workout_plan_dialog.dart';
 import '../notifications/notification_settings_screen.dart';
 import '../notifications/services/notification_repository.dart';
 import 'exersise_dialog.dart';
-import 'home_settings_dialog.dart';
 import 'changelog_dialog.dart';
 import 'tips_dialog.dart';
 import '../help_feedback/help_feedback_screen.dart';
+import '../privacy/privacy_screen.dart';
+import '../splash/splash_screen.dart';
 import '../../core/app_version.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -57,12 +58,18 @@ class _ProfileScreenState extends State<ProfileScreen>
   String _name = '';
   String _email = 'alex@workout.dev';
   String? _avatarPath;
+  String _memberSince = '';
   int _age = 28;
   String _goal = 'general_fitness';
 
   // Stats data
   int _workoutCount = 0;
   int _dayStreak = 0;
+
+  // Home section visibility
+  bool _showAchievement = true;
+  bool _showSteps = true;
+  bool _showHydration = true;
 
   // Language & Units
   bool _isEnglish = true;
@@ -90,14 +97,27 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _loadAll() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
+    // Check avatar file existence asynchronously (avoid blocking main thread).
+    final avatarPath = prefs.getString('profile_avatar_path');
+    final avatarExists = avatarPath != null && await File(avatarPath).exists();
+    // Store or retrieve member-since date (used in profile header).
+    final memberSinceStr = prefs.getString('profile_member_since');
+    final memberSince = memberSinceStr ?? dateKey(DateTime.now());
+    if (memberSinceStr == null) {
+      await prefs.setString('profile_member_since', memberSince);
+    }
+    if (!mounted) return;
     setState(() {
       _name = prefs.getString('profile_name') ?? '';
       _email = prefs.getString('profile_email') ?? '';
-      final avatarPath = prefs.getString('profile_avatar_path');
-      _avatarPath = (avatarPath != null && File(avatarPath).existsSync()) ? avatarPath : null;
+      _avatarPath = avatarExists ? avatarPath : null;
+      _memberSince = memberSince;
       _age = prefs.getInt('profile_age') ?? 28;
       _goal = prefs.getString('profile_goal') ?? 'general_fitness';
       _restTimerSeconds = prefs.getInt('rest_timer_seconds') ?? 30;
+      _showAchievement = prefs.getBool('home_show_achievement') ?? true;
+      _showSteps = prefs.getBool('home_show_steps') ?? true;
+      _showHydration = prefs.getBool('home_show_hydration') ?? true;
     });
 
     await _loadStats(prefs);
@@ -131,8 +151,33 @@ class _ProfileScreenState extends State<ProfileScreen>
     });
   }
 
+  /// Formats a YYYY-MM-DD date string into a human-readable month + year.
+  /// Example: "2026-07-05" → "July 2026"
+  String _formatMemberDate(String dateStr) {
+    try {
+      final parts = dateStr.split('-');
+      if (parts.length != 3) return dateStr;
+      final year = int.tryParse(parts[0]) ?? 0;
+      final month = int.tryParse(parts[1]) ?? 1;
+      if (year == 0 || month < 1 || month > 12) return dateStr;
+      const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December',
+      ];
+      return '${months[month - 1]} $year';
+    } catch (_) {
+      return dateStr;
+    }
+  }
+
   int _calculateStreak(List<WorkoutSession> sessions) {
-    final dates = sessions.map((s) => s.date).toSet().toList()..sort();
+    // Normalize to midnight so same-day workouts at different times don't
+    // create duplicate entries and break the streak count.
+    final dates = sessions
+        .map((s) => DateTime(s.date.year, s.date.month, s.date.day))
+        .toSet()
+        .toList()
+      ..sort();
     if (dates.isEmpty) return 0;
 
     int streak = 0;
@@ -331,15 +376,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ),
                 ),
               ),
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '${AppLocalizations.of(context).profile_memberSince} June 2025',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppTheme.textTertiary(context),
-                    ),
+            if (_memberSince.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '${AppLocalizations.of(context).profile_memberSince} ${_formatMemberDate(_memberSince)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textTertiary(context),
+                      ),
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -355,32 +401,35 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     return Semantics(
       label: 'Your fitness statistics',
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatCard(
-              context,
-              value: '$_workoutCount',
-              label: l10n.profile_workouts,
-              icon: Icons.fitness_center,
-              color: AppTheme.achievementGreen,
-              progress: workoutProgress,
-              goalLabel: '50 ${l10n.profile_goal}',
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _buildStatCard(
-              context,
-              value: '$_dayStreak',
-              label: l10n.profile_dayStreak,
-              icon: Icons.local_fire_department,
-              color: AppTheme.stepsOrange,
-              progress: streakProgress,
-              goalLabel: '30 ${l10n.profile_day}',
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final cardWidth = (constraints.maxWidth - 6) / 2;
+          return Row(
+            children: [
+              _buildStatCard(
+                context,
+                value: '$_workoutCount',
+                label: l10n.profile_workouts,
+                icon: Icons.fitness_center,
+                color: AppTheme.achievementGreen,
+                progress: workoutProgress,
+                goalLabel: '50 ${l10n.profile_goal}',
+                width: cardWidth,
+              ),
+              const SizedBox(width: 6),
+              _buildStatCard(
+                context,
+                value: '$_dayStreak',
+                label: l10n.profile_dayStreak,
+                icon: Icons.local_fire_department,
+                color: AppTheme.stepsOrange,
+                progress: streakProgress,
+                goalLabel: '30 ${l10n.profile_day}',
+                width: cardWidth,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -393,65 +442,69 @@ class _ProfileScreenState extends State<ProfileScreen>
     required Color color,
     required double progress,
     required String goalLabel,
+    required double width,
   }) {
     final numericValue =
         double.tryParse(value.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0;
     final suffix = value.replaceAll(RegExp(r'[0-9]'), '');
 
-    return Semantics(
-      label: '$label: $value $goalLabel',
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          HapticFeedback.lightImpact();
-        },
-        child: Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: color.withValues(alpha: 0.25), width: 1),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    ColoredIconBox(icon: icon, color: color, size: 28),
-                    const Spacer(),
-                    ProgressRing(
-                      progress: progress,
-                      centerLabel: '${(progress * 100).round()}%',
-                      bottomLabel: goalLabel.split(' ').first,
-                      color: color,
-                      size: 32,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0.0, end: numericValue),
-                  duration: AppTheme.kAnimMedium,
-                  curve: AppTheme.kEaseOut,
-                  builder: (context, animatedValue, _) {
-                    return Text(
-                      '${animatedValue.toInt()}$suffix',
-                      style: TextStyle(
-                        color: AppTheme.textPrimary(context),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        height: 1.0,
+    return SizedBox(
+      width: width,
+      child: Semantics(
+        label: '$label: $value $goalLabel',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            HapticFeedback.lightImpact();
+          },
+          child: Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: color.withValues(alpha: 0.25), width: 1),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      ColoredIconBox(icon: icon, color: color, size: 28),
+                      const Spacer(),
+                      ProgressRing(
+                        progress: progress,
+                        centerLabel: '${(progress * 100).round()}%',
+                        bottomLabel: goalLabel.split(' ').first,
+                        color: color,
+                        size: 36,
                       ),
-                    );
-                  },
-                ),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: AppTheme.textTertiary(context),
-                    fontSize: 11,
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: numericValue),
+                    duration: AppTheme.kAnimMedium,
+                    curve: AppTheme.kEaseOut,
+                    builder: (context, animatedValue, _) {
+                      return Text(
+                        '${animatedValue.toInt()}$suffix',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary(context),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          height: 1.0,
+                        ),
+                      );
+                    },
+                  ),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: AppTheme.textTertiary(context),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -575,15 +628,47 @@ class _ProfileScreenState extends State<ProfileScreen>
                 },
               ),
               _divider(context),
-              _buildSettingsTile(
-                context,
-                icon: Icons.palette_outlined,
-                title: l10n.profile_appearance,
-                color: Theme.of(context).colorScheme.primary,
-                onTap: () => _showHomeSettingsDialog(context),
+              _buildRestTimerTile(context),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildSectionHeader(context, Icons.home_outlined, 'Home Screen'),
+        const SizedBox(height: 8),
+        Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+              width: 1,
+            ),
+          ),
+          elevation: 0,
+          child: Column(
+            children: [
+              _buildSettingsTile(context,
+                icon: Icons.emoji_events,
+                title: 'Achievement',
+                color: AppTheme.achievementGreen,
+                subtitle: _showAchievement ? 'Visible' : 'Hidden',
+                onTap: () => _toggleHomeCard('achievement'),
               ),
               _divider(context),
-              _buildRestTimerTile(context),
+              _buildSettingsTile(context,
+                icon: Icons.directions_run,
+                title: 'Steps',
+                color: AppTheme.stepsOrange,
+                subtitle: _showSteps ? 'Visible' : 'Hidden',
+                onTap: () => _toggleHomeCard('steps'),
+              ),
+              _divider(context),
+              _buildSettingsTile(context,
+                icon: Icons.water_drop,
+                title: 'Hydration',
+                color: AppTheme.hydrationBlue,
+                subtitle: _showHydration ? 'Visible' : 'Hidden',
+                onTap: () => _toggleHomeCard('hydration'),
+              ),
             ],
           ),
         ),
@@ -698,6 +783,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                 title: l10n.profile_logUpdates,
                 color: AppTheme.achievementGreen,
                 onTap: () => showChangelogDialog(context),
+              ),
+              _divider(context),
+              _buildSettingsTile(
+                context,
+                icon: Icons.privacy_tip_outlined,
+                title: 'Privacy Policy',
+                color: AppTheme.hydrationBlue,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+                  );
+                },
               ),
               _divider(context),
               _buildSettingsTile(
@@ -825,12 +923,23 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  void _showHomeSettingsDialog(BuildContext context) {
+  void _toggleHomeCard(String card) async {
     HapticFeedback.lightImpact();
-    showHomeSettingsDialog(
-      context,
-      onSettingsChanged: widget.onHomeSettingsChanged,
-    );
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      switch (card) {
+        case 'achievement':
+          _showAchievement = !_showAchievement;
+          prefs.setBool('home_show_achievement', _showAchievement);
+        case 'steps':
+          _showSteps = !_showSteps;
+          prefs.setBool('home_show_steps', _showSteps);
+        case 'hydration':
+          _showHydration = !_showHydration;
+          prefs.setBool('home_show_hydration', _showHydration);
+      }
+    });
+    widget.onHomeSettingsChanged?.call();
   }
 
   Widget _buildSectionHeader(BuildContext context, IconData icon, String title) {
@@ -1185,9 +1294,43 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
               HapticFeedback.mediumImpact();
               Navigator.of(ctx).pop();
+              final prefs = await SharedPreferences.getInstance();
+              final theme = prefs.getBool('theme_is_dark');
+              final locale = prefs.getString('locale_code');
+              final languageCode = prefs.getString('language_code');
+              final isMetric = prefs.getBool('notification_is_metric');
+              final restSecs = prefs.getInt('rest_timer_seconds');
+              final stepsClick = prefs.getInt('steps_per_click');
+              final hydraML = prefs.getInt('hydration_ml_per_click');
+              final hydraGoal = prefs.getDouble('hydration_target_liters');
+              final hydraAuto = prefs.getBool('hydration_auto_calc');
+              final showAch = prefs.getBool('home_show_achievement');
+              final showSteps = prefs.getBool('home_show_steps');
+              final showHydra = prefs.getBool('home_show_hydration');
+              await prefs.clear();
+              if (theme != null) await prefs.setBool('theme_is_dark', theme);
+              if (locale != null) await prefs.setString('locale_code', locale);
+              if (languageCode != null) await prefs.setString('language_code', languageCode);
+              if (isMetric != null) await prefs.setBool('notification_is_metric', isMetric);
+              if (restSecs != null) await prefs.setInt('rest_timer_seconds', restSecs);
+              if (stepsClick != null) await prefs.setInt('steps_per_click', stepsClick);
+              if (hydraML != null) await prefs.setInt('hydration_ml_per_click', hydraML);
+              if (hydraGoal != null) await prefs.setDouble('hydration_target_liters', hydraGoal);
+              if (hydraAuto != null) await prefs.setBool('hydration_auto_calc', hydraAuto);
+              if (showAch != null) await prefs.setBool('home_show_achievement', showAch);
+              if (showSteps != null) await prefs.setBool('home_show_steps', showSteps);
+              if (showHydra != null) await prefs.setBool('home_show_hydration', showHydra);
+              // Navigate to splash screen (which shows onboarding for new users)
+              if (!context.mounted) return;
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) => const SplashScreen(),
+                ),
+                (route) => false,
+              );
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(l10n.profile_signOutSuccess),
