@@ -19,6 +19,18 @@ class UpdateEntry {
 /// Source of truth: `The Plan.md` file at the project root.
 /// Whenever you add here, add the same entry to The Plan.md too.
 final changelog = <UpdateEntry>[
+  // ── 2026-07-15: Multi-Plan Hub + Planning Mode ──
+  UpdateEntry(
+    date: DateTime(2026, 7, 15),
+    title: 'Workout Plan Hub + Custom Plans',
+    description:
+        'Profile → Workout Plan now opens a plan hub: the built-in 12-week '
+        'program as default, your custom multi-week plans, and a + card to '
+        'create new ones. Planning mode lets you add weeks, expand days, and '
+        'multi-select default + custom exercises per day. Home still uses the '
+        'built-in program for now.',
+  ),
+
   // ── 2026-06-16: Day-Rollover & Exercise Tracking Overhaul ──
   UpdateEntry(
     date: DateTime(2026, 6, 16),

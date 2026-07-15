@@ -183,7 +183,186 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profile_exerciseLibrary => 'Exercise Library';
 
   @override
+  String get exLib_title => 'Exercises';
+
+  @override
+  String get exLib_addTooltip => 'Add custom exercise';
+
+  @override
+  String get exLib_searchHint => 'Search exercises...';
+
+  @override
+  String get exLib_filterAll => 'All';
+
+  @override
+  String get exLib_filterCustom => '★ Custom';
+
+  @override
+  String get exLib_clear => 'Clear';
+
+  @override
+  String exLib_results(int count) {
+    return '$count results';
+  }
+
+  @override
+  String exLib_resultsIn(int count, String scope) {
+    return '$count in $scope';
+  }
+
+  @override
+  String exLib_chipWithCount(String label, int count) {
+    return '$label · $count';
+  }
+
+  @override
+  String get exLib_emptyCustom => 'No custom exercises yet.\nTap + to add one!';
+
+  @override
+  String exLib_emptyCustomSearch(String query) {
+    return 'No custom exercises match \"$query\".';
+  }
+
+  @override
+  String exLib_emptyCategory(String category) {
+    return 'No $category exercises.';
+  }
+
+  @override
+  String exLib_emptyCategorySearch(String category, String query) {
+    return 'No $category exercises match \"$query\".';
+  }
+
+  @override
+  String exLib_emptySearch(String query) {
+    return 'No matches for \"$query\".';
+  }
+
+  @override
+  String get exLib_emptyAll => 'No exercises.\nTap + to add a custom one.';
+
+  @override
   String get profile_workoutPlan => 'Workout Plan';
+
+  @override
+  String get plan_hubSubtitle => 'Choose a plan to view, or create your own.';
+
+  @override
+  String get plan_defaultTitle => '12-Week Program';
+
+  @override
+  String get plan_defaultBadge => 'Default';
+
+  @override
+  String get plan_customBadge => 'Custom';
+
+  @override
+  String get plan_newPlan => 'New plan';
+
+  @override
+  String get plan_editPlan => 'Edit plan';
+
+  @override
+  String plan_cardStats(int weeks, int exercises) {
+    return '$weeks weeks · $exercises exercises';
+  }
+
+  @override
+  String get plan_planName => 'Plan name';
+
+  @override
+  String get plan_planNameHint => 'e.g. Summer Shred';
+
+  @override
+  String get plan_nameRequired => 'Please enter a plan name';
+
+  @override
+  String get plan_needOneWeek => 'Add at least one week';
+
+  @override
+  String get plan_save => 'Save';
+
+  @override
+  String get plan_saveError => 'Could not save plan';
+
+  @override
+  String get plan_weeksSection => 'Weeks';
+
+  @override
+  String get plan_addWeek => 'Add week';
+
+  @override
+  String get plan_removeWeek => 'Remove last week';
+
+  @override
+  String plan_exerciseCount(int count) {
+    return '$count exercises';
+  }
+
+  @override
+  String plan_dayWithCount(int day, int count) {
+    return 'Day $day · $count exercises';
+  }
+
+  @override
+  String get plan_pickExercises => 'Pick exercises';
+
+  @override
+  String get plan_searchExercises => 'Search exercises...';
+
+  @override
+  String get plan_filterAll => 'All';
+
+  @override
+  String get plan_filterCustom => '★ Custom';
+
+  @override
+  String get plan_noExercisesFound => 'No exercises found';
+
+  @override
+  String get plan_done => 'Done';
+
+  @override
+  String get plan_deleteTitle => 'Delete plan?';
+
+  @override
+  String plan_deleteMessage(String name) {
+    return 'Delete \"$name\"? This cannot be undone.';
+  }
+
+  @override
+  String get plan_delete => 'Delete';
+
+  @override
+  String get plan_cancel => 'Cancel';
+
+  @override
+  String get plan_retry => 'Retry';
+
+  @override
+  String plan_selectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get plan_discardTitle => 'Discard changes?';
+
+  @override
+  String get plan_discardMessage =>
+      'You have unsaved changes. Leave without saving?';
+
+  @override
+  String get plan_discard => 'Discard';
+
+  @override
+  String get plan_saved => 'Plan saved';
+
+  @override
+  String get plan_editorHint =>
+      'Tap a day to pick exercises. Empty days are rest days.';
+
+  @override
+  String get plan_tapToAddExercises => 'Tap to add exercises';
 
   @override
   String get profile_notifications => 'Notifications';

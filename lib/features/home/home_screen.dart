@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,17 +11,28 @@ import '../../data/exercise.dart';
 import '../../data/weight_entry.dart';
 import '../../data/workout_log.dart';
 import '../../l10n/app_localizations.dart';
-import '../achievements/models/achievement_category.dart';
 import '../achievements/providers/achievement_provider.dart';
-import '../achievements/widgets/achievement_preview_card.dart';
 import '../dialogs/achivment_dialog.dart';
 import '../dialogs/exercise_progress_dialog.dart';
 import '../dialogs/weight_log_sheet.dart';
+import '../hydration/hydration_history_screen.dart';
+import '../steps/step_history_screen.dart';
 import 'models/trend_info.dart';
 import 'painters/weight_spark_painter.dart';
 import 'rest_timer.dart';
 import 'widgets/exercise_info_sheet.dart';
+import 'widgets/progress_ring.dart';
 import 'widgets/top_action.dart';
+
+enum _HomeMetric {
+  /// First icon in the rail (when visible).
+  achievements,
+  /// Default selected tab.
+  thisWeek,
+  weight,
+  steps,
+  hydration,
+}
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onThemeToggle;
@@ -132,6 +144,9 @@ class _HomeScreenState extends State<HomeScreen>
   final List<CurvedAnimation?> _cachedBarCurves = List.filled(7, null);
   String? _restTimerExerciseUuid;
 
+  /// Stacked metrics: This Week is default.
+  _HomeMetric _selectedMetric = _HomeMetric.thisWeek;
+
   String get _greeting {
     final now = widget.clock.now();
     final hour = now.hour;
@@ -192,6 +207,22 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final metrics = _availableMetrics;
+    if (metrics.isNotEmpty && !metrics.contains(_selectedMetric)) {
+      _selectedMetric = metrics.first;
+    }
+  }
+
+  _HomeMetric get _effectiveMetric {
+    final metrics = _availableMetrics;
+    if (metrics.isEmpty) return _HomeMetric.thisWeek;
+    if (metrics.contains(_selectedMetric)) return _selectedMetric;
+    return metrics.first;
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       setState(() {});
@@ -249,38 +280,20 @@ class _HomeScreenState extends State<HomeScreen>
 
     int sectionIndex = 1;
 
-    if (widget.showAchievements) {
+    final metrics = _availableMetrics;
+    if (metrics.isNotEmpty) {
       children.addAll([
         const SizedBox(height: 16),
         _buildStaggeredSection(
-          child: _buildAchievementCard(context),
+          child: _buildMetricsStack(context, metrics),
           index: sectionIndex++,
         ),
       ]);
     }
 
-    if (widget.showThisWeek) {
-      children.addAll([
-        const SizedBox(height: 16),
-        _buildStaggeredSection(
-          child: _buildThisWeekSection(context),
-          index: sectionIndex++,
-        ),
-      ]);
-    }
-
-    if (widget.showWeightTrend) {
-      children.addAll([
-        const SizedBox(height: 16),
-        _buildStaggeredSection(
-          child: _buildWeightTrendCard(context),
-          index: sectionIndex++,
-        ),
-      ]);
-    }
-
-      children.addAll([
-        _buildStaggeredSection(
+    children.addAll([
+      const SizedBox(height: 16),
+      _buildStaggeredSection(
         child: _buildTodaysWorkoutSection(context),
         index: sectionIndex++,
       ),
@@ -360,34 +373,676 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildAchievementCard(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final provider = context.watch<AchievementProvider>();
-    final cats = {
-      for (final cat in _allCategories)
-        cat.label: provider.unlockedFor(cat),
-    };
+    final green = AppTheme.achievementGreen;
+    final count = provider.unlockedCount;
+    final total = provider.totalCount;
+    final progress = total > 0 ? count / total : 0.0;
+    final latest = provider.results
+        .where((r) => r.isUnlocked)
+        .toList()
+        .lastOrNull
+        ?.definition
+        .localizedTitle(l10n);
+    final closest = provider.closestToUnlock;
 
-    return AchievementPreviewCard(
-      count: provider.unlockedCount,
-      totalCount: provider.totalCount,
-      latestAchievement: provider.results
-          .where((r) => r.isUnlocked)
-          .toList()
-          .lastOrNull
-          ?.definition
-          .localizedTitle(l10n),
-      closest: provider.closestToUnlock,
-      categoryState: cats,
-      onTap: () {
-        HapticFeedback.lightImpact();
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => const AchievementsDialog(),
+    return Semantics(
+      label: 'Achievements: $count of $total unlocked',
+      button: true,
+      child: _metricCardFrame(
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const AchievementsDialog(),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _metricHeader(
+                context: context,
+                icon: Icons.emoji_events_rounded,
+                title: l10n.dialog_achievementsTitle,
+                trailing: Text(
+                  '$count / $total',
+                  style: TextStyle(
+                    color: green,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: _kMetricBodyHeight,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            latest != null && latest.isNotEmpty
+                                ? latest
+                                : l10n.dialog_achievementsTitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: AppTheme.textPrimary(context),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          if (closest != null && !closest.isUnlocked)
+                            Text(
+                              closest.definition.localizedTitle(l10n),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AppTheme.textTertiary(context),
+                                fontSize: 13,
+                              ),
+                            )
+                          else
+                            Text(
+                              '$count unlocked',
+                              style: TextStyle(
+                                color: AppTheme.textTertiary(context),
+                                fontSize: 13,
+                              ),
+                            ),
+                          const SizedBox(height: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: progress.clamp(0.0, 1.0),
+                              minHeight: 8,
+                              backgroundColor: AppTheme.subtleFill(context),
+                              color: green,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ProgressRing(
+                      progress: progress,
+                      centerLabel: '${(progress * 100).round()}%',
+                      bottomLabel: l10n.dialog_achievementsUnlocked,
+                      color: green,
+                      size: 72,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 16,
+                child: Text(
+                  latest != null ? 'Latest: $latest' : '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: AppTheme.textTertiary(context),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  static const _allCategories = AchievementCategory.values;
+  List<_HomeMetric> get _availableMetrics {
+    // Order = icon rail order. Achievements first; This Week stays default selection.
+    final list = <_HomeMetric>[];
+    if (widget.showAchievements) list.add(_HomeMetric.achievements);
+    if (widget.showThisWeek) list.add(_HomeMetric.thisWeek);
+    if (widget.showWeightTrend) list.add(_HomeMetric.weight);
+    if (widget.showSteps) list.add(_HomeMetric.steps);
+    if (widget.showHydration) list.add(_HomeMetric.hydration);
+    return list;
+  }
+
+  IconData _metricIcon(_HomeMetric m) {
+    switch (m) {
+      case _HomeMetric.achievements:
+        return Icons.emoji_events_rounded;
+      case _HomeMetric.thisWeek:
+        return Icons.bar_chart_rounded;
+      case _HomeMetric.weight:
+        return Icons.monitor_weight_outlined;
+      case _HomeMetric.steps:
+        return Icons.directions_walk_rounded;
+      case _HomeMetric.hydration:
+        return Icons.water_drop_rounded;
+    }
+  }
+
+  Color _metricColor(BuildContext context, _HomeMetric m) {
+    switch (m) {
+      case _HomeMetric.achievements:
+        return AppTheme.achievementGreen;
+      case _HomeMetric.thisWeek:
+        return Theme.of(context).colorScheme.primary;
+      case _HomeMetric.weight:
+        return AppTheme.weightPurple;
+      case _HomeMetric.steps:
+        return AppTheme.stepsOrange;
+      case _HomeMetric.hydration:
+        return AppTheme.hydrationBlue;
+    }
+  }
+
+  String _metricLabel(AppLocalizations l10n, _HomeMetric m) {
+    switch (m) {
+      case _HomeMetric.achievements:
+        return l10n.dialog_achievementsTitle;
+      case _HomeMetric.thisWeek:
+        return l10n.home_thisWeek;
+      case _HomeMetric.weight:
+        return l10n.home_weight;
+      case _HomeMetric.steps:
+        return l10n.home_steps;
+      case _HomeMetric.hydration:
+        return l10n.home_hydration;
+    }
+  }
+
+  Widget _buildMetricsStack(BuildContext context, List<_HomeMetric> metrics) {
+    final l10n = AppLocalizations.of(context);
+    final selected = _effectiveMetric;
+    final selectedColor = _metricColor(context, selected);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Magic full-width sliding pill rail
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              height: 58,
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: AppTheme.cardColor(context).withValues(alpha: 0.72),
+                border: Border.all(
+                  color: AppTheme.subtleFill(context, 0.10),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.06),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final n = metrics.length;
+                  if (n == 0) return const SizedBox.shrink();
+                  final gap = 4.0;
+                  final cellW =
+                      (constraints.maxWidth - gap * (n - 1)) / n;
+                  final index = metrics.indexOf(selected).clamp(0, n - 1);
+                  final pillLeft = index * (cellW + gap);
+
+                  return Stack(
+                    children: [
+                      // Sliding glow pill
+                      AnimatedPositioned(
+                        duration: _reduceMotion
+                            ? Duration.zero
+                            : const Duration(milliseconds: 380),
+                        curve: Curves.easeOutBack,
+                        left: pillLeft,
+                        width: cellW,
+                        top: 0,
+                        bottom: 0,
+                        child: AnimatedContainer(
+                          duration: AppTheme.kAnimMedium,
+                          curve: AppTheme.kEaseOut,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(15),
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                selectedColor.withValues(alpha: 0.95),
+                                Color.lerp(
+                                  selectedColor,
+                                  Colors.black,
+                                  0.22,
+                                )!,
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: selectedColor.withValues(
+                                  alpha: isDark ? 0.55 : 0.35,
+                                ),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                                spreadRadius: -2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Equal-width hit targets + icons
+                      Row(
+                        children: [
+                          for (var i = 0; i < n; i++) ...[
+                            if (i > 0) SizedBox(width: gap),
+                            Expanded(
+                              child: _buildMagicMetricIcon(
+                                context,
+                                metric: metrics[i],
+                                selected: metrics[i] == selected,
+                                label: _metricLabel(l10n, metrics[i]),
+                                onTap: () {
+                                  if (metrics[i] == _selectedMetric) return;
+                                  HapticFeedback.mediumImpact();
+                                  setState(
+                                    () => _selectedMetric = metrics[i],
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Card content with scale + fade + slide magic
+        AnimatedSwitcher(
+          duration: _reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 420),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          layoutBuilder: (currentChild, previousChildren) {
+            return Stack(
+              alignment: Alignment.topCenter,
+              children: [
+                ...previousChildren,
+                if (currentChild != null) currentChild,
+              ],
+            );
+          },
+          transitionBuilder: (child, anim) {
+            final curved = CurvedAnimation(
+              parent: anim,
+              curve: Curves.easeOutCubic,
+            );
+            return FadeTransition(
+              opacity: curved,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.96, end: 1.0).animate(curved),
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0.0, 0.06),
+                    end: Offset.zero,
+                  ).animate(curved),
+                  child: child,
+                ),
+              ),
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey(selected),
+            child: _buildMetricBody(context, selected),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMagicMetricIcon(
+    BuildContext context, {
+    required _HomeMetric metric,
+    required bool selected,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(15),
+          splashColor: Colors.white.withValues(alpha: 0.12),
+          highlightColor: Colors.white.withValues(alpha: 0.06),
+          child: SizedBox(
+            height: double.infinity,
+            child: Center(
+              child: AnimatedScale(
+                scale: selected ? 1.14 : 1.0,
+                duration: AppTheme.kAnimMedium,
+                curve: Curves.easeOutBack,
+                child: Icon(
+                  _metricIcon(metric),
+                  size: selected ? 26 : 22,
+                  color: selected
+                      ? Colors.white
+                      : AppTheme.textTertiary(context),
+                  shadows: selected
+                      ? [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Matches "This Week": header + 16 gap + 110 body + 8 gap + footer + padding.
+  static const double _kMetricCardHeight = 208;
+  static const double _kMetricBodyHeight = 110;
+  static const EdgeInsets _kMetricPadding =
+      EdgeInsets.fromLTRB(16, 16, 16, 18);
+
+  Widget _buildMetricBody(BuildContext context, _HomeMetric metric) {
+    final content = switch (metric) {
+      _HomeMetric.achievements => _buildAchievementCard(context),
+      _HomeMetric.thisWeek => _buildThisWeekSection(context),
+      _HomeMetric.weight => _buildWeightTrendCard(context),
+      _HomeMetric.steps => _buildStepsCard(context),
+      _HomeMetric.hydration => _buildHydrationCard(context),
+    };
+    return SizedBox(
+      height: _kMetricCardHeight,
+      width: double.infinity,
+      child: content,
+    );
+  }
+
+  Widget _metricCardFrame({required Widget child}) {
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox.expand(
+        child: Padding(
+          padding: _kMetricPadding,
+          child: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _metricHeader({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    Widget? trailing,
+  }) {
+    return SizedBox(
+      height: 24,
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.textSecondary(context), size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: AppTheme.textPrimary(context),
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          ?trailing,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepsCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final steps = widget.steps ?? 0;
+    final goal = widget.stepsGoal <= 0 ? 10000 : widget.stepsGoal;
+    final progress = (steps / goal).clamp(0.0, 1.0);
+    final color = AppTheme.stepsOrange;
+
+    return Semantics(
+      label: '${l10n.home_steps}, $steps',
+      child: _metricCardFrame(
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            widget.onStepsChanged?.call(steps + widget.stepsPerClick);
+          },
+          onLongPress: () {
+            HapticFeedback.mediumImpact();
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const StepHistoryScreen()),
+            );
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _metricHeader(
+                context: context,
+                icon: Icons.directions_walk_rounded,
+                title: l10n.home_steps,
+                trailing: Text(
+                  '$steps / $goal',
+                  style: TextStyle(
+                    color: AppTheme.textTertiary(context),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: _kMetricBodyHeight,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0, end: steps.toDouble()),
+                            duration: AppTheme.kAnimMedium,
+                            curve: AppTheme.kEaseOut,
+                            builder: (context, value, _) {
+                              return Text(
+                                '${value.round()}',
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary(context),
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.0,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 8,
+                              backgroundColor: AppTheme.subtleFill(context),
+                              color: color,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ProgressRing(
+                      progress: progress,
+                      centerLabel: '${(progress * 100).round()}%',
+                      bottomLabel: l10n.home_steps,
+                      color: color,
+                      size: 72,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 16,
+                child: Text(
+                  l10n.home_tapToAdd,
+                  style: TextStyle(
+                    color: AppTheme.textDisabled(context),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHydrationCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final liters = widget.hydrationLiters ?? 0.0;
+    final goal = widget.hydrationGoal <= 0 ? 2.5 : widget.hydrationGoal;
+    final progress = (liters / goal).clamp(0.0, 1.0);
+    final color = AppTheme.hydrationBlue;
+    final addLiters = widget.hydrationMLPerClick / 1000.0;
+
+    return Semantics(
+      label:
+          '${l10n.home_hydration}, ${liters.toStringAsFixed(2)} ${l10n.home_liters}',
+      child: _metricCardFrame(
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            final next = (liters + addLiters).clamp(0.0, goal * 3);
+            widget.onHydrationChanged?.call(next);
+          },
+          onLongPress: () {
+            HapticFeedback.mediumImpact();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const HydrationHistoryScreen(),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _metricHeader(
+                context: context,
+                icon: Icons.water_drop_rounded,
+                title: l10n.home_hydration,
+                trailing: Text(
+                  '${liters.toStringAsFixed(2)} / ${goal.toStringAsFixed(1)}',
+                  style: TextStyle(
+                    color: AppTheme.textTertiary(context),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: _kMetricBodyHeight,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0, end: liters),
+                            duration: AppTheme.kAnimMedium,
+                            curve: AppTheme.kEaseOut,
+                            builder: (context, value, _) {
+                              return Text(
+                                '${value.toStringAsFixed(2)} ${l10n.home_liters}',
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary(context),
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.0,
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 8,
+                              backgroundColor: AppTheme.subtleFill(context),
+                              color: color,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ProgressRing(
+                      progress: progress,
+                      centerLabel: '${(progress * 100).round()}%',
+                      bottomLabel: l10n.home_hydration,
+                      color: color,
+                      size: 72,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 16,
+                child: Text(
+                  l10n.home_tapToAdd,
+                  style: TextStyle(
+                    color: AppTheme.textDisabled(context),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildThisWeekSection(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -416,41 +1071,27 @@ class _HomeScreenState extends State<HomeScreen>
 
     return Semantics(
       label: '${l10n.home_thisWeek} activity chart',
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.bar_chart,
-                    color: AppTheme.textSecondary(context),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.home_thisWeek,
-                    style: TextStyle(
-                      color: AppTheme.textPrimary(context),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '$totalExercises ${l10n.home_exercises}',
-                    style: TextStyle(
-                      color: AppTheme.textTertiary(context),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+      child: _metricCardFrame(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _metricHeader(
+              context: context,
+              icon: Icons.bar_chart_rounded,
+              title: l10n.home_thisWeek,
+              trailing: Text(
+                '$totalExercises ${l10n.home_exercises}',
+                style: TextStyle(
+                  color: AppTheme.textTertiary(context),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              const SizedBox(height: 16),
-              AnimatedBuilder(
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: _kMetricBodyHeight,
+              child: AnimatedBuilder(
                 animation: _barsController,
                 builder: (context, _) {
                   for (int i = 0; i < 7; i++) {
@@ -470,34 +1111,34 @@ class _HomeScreenState extends State<HomeScreen>
                     );
                   });
 
-                  return SizedBox(
-                    height: 110,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: List.generate(7, (i) {
-                        final h = barAnims[i].value;
-                        final isActive = h > 0.05;
-                        return Semantics(
-                          label: '${days[i]}: ${(h * 100).round()}% activity',
-                          child: Container(
-                            width: 28,
-                            height: 100 * h,
-                            decoration: BoxDecoration(
-                              color: isActive
-                                  ? Theme.of(context).colorScheme.primary
-                                  : AppTheme.subtleFill(context),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(7, (i) {
+                      final h = barAnims[i].value;
+                      final isActive = h > 0.05;
+                      return Semantics(
+                        label: '${days[i]}: ${(h * 100).round()}% activity',
+                        child: Container(
+                          width: 28,
+                          height: (_kMetricBodyHeight - 10) * h,
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? Theme.of(context).colorScheme.primary
+                                : AppTheme.subtleFill(context),
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                        );
-                      }),
-                    ),
+                        ),
+                      );
+                    }),
                   );
                 },
               ),
-              const SizedBox(height: 8),
-              Row(
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 16,
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: days
                     .map(
@@ -516,8 +1157,8 @@ class _HomeScreenState extends State<HomeScreen>
                     )
                     .toList(),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1082,32 +1723,16 @@ class _HomeScreenState extends State<HomeScreen>
 
     return Semantics(
       label: 'Weight tracker, ${currentWeight.toStringAsFixed(1)} kilograms',
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header — matches "This Week": icon + title + meta spacer'd right
-              Row(
-                children: [
-                  Icon(
-                    Icons.monitor_weight_outlined,
-                    color: AppTheme.textSecondary(context),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.home_weight,
-                    style: TextStyle(
-                      color: AppTheme.textPrimary(context),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (trend.isValid)
-                    Row(
+      child: _metricCardFrame(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _metricHeader(
+              context: context,
+              icon: Icons.monitor_weight_outlined,
+              title: l10n.home_weight,
+              trailing: trend.isValid
+                  ? Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(trend.icon, size: 16, color: trend.color(context)),
@@ -1121,91 +1746,91 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ),
                       ],
+                    )
+                  : null,
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: _kMetricBodyHeight,
+              width: double.infinity,
+              child: sorted.isEmpty
+                  ? _buildWeightEmpty(context)
+                  : GestureDetector(
+                      onTap: () => _onWeightTap(context),
+                      child: AnimatedBuilder(
+                        animation: _weightChartAnim,
+                        builder: (context, _) {
+                          return CustomPaint(
+                            size: const Size(double.infinity, _kMetricBodyHeight),
+                            painter: WeightSparkPainter(
+                              entries: sorted,
+                              lineColor: purple,
+                              animationValue: _reduceMotion
+                                  ? 1.0
+                                  : _weightChartAnim.value,
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Chart area (110px, same as "This Week" bars)
-              if (sorted.isEmpty)
-                _buildWeightEmpty(context)
-              else ...[
-                SizedBox(
-                  height: 110,
-                  child: GestureDetector(
-                    onTap: () => _onWeightTap(context),
-                    child: AnimatedBuilder(
-                      animation: _weightChartAnim,
-                      builder: (context, _) {
-                        return CustomPaint(
-                          size: const Size(double.infinity, 110),
-                          painter: WeightSparkPainter(
-                            entries: sorted,
-                            lineColor: purple,
-                            animationValue: _reduceMotion
-                                ? 1.0
-                                : _weightChartAnim.value,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 16,
+              child: sorted.isEmpty
+                  ? const SizedBox.shrink()
+                  : Row(
+                      children: [
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: currentWeight),
+                          duration: AppTheme.kAnimMedium,
+                          curve: AppTheme.kEaseOut,
+                          builder: (context, animated, _) {
+                            return Text(
+                              '${animated.toStringAsFixed(1)} ${l10n.home_kg}',
+                              style: TextStyle(
+                                color: AppTheme.textPrimary(context),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        if (hasGoal) ...[
+                          SizedBox(
+                            width: 60,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(3),
+                              child: LinearProgressIndicator(
+                                value: goalProgress.clamp(0.0, 1.0),
+                                backgroundColor: AppTheme.subtleFill(context),
+                                color: purple,
+                                minHeight: 6,
+                              ),
+                            ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                // Footer — current weight + goal progress + last logged
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: currentWeight),
-                      duration: AppTheme.kAnimMedium,
-                      curve: AppTheme.kEaseOut,
-                      builder: (context, animated, _) {
-                        return Text(
-                          '${animated.toStringAsFixed(1)} ${l10n.home_kg}',
+                          const SizedBox(width: 4),
+                          Text(
+                            '${(goalProgress * 100).round()}%',
+                            style: TextStyle(
+                              color: AppTheme.textTertiary(context),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        Text(
+                          _lastLoggedText(sorted),
                           style: TextStyle(
-                            color: AppTheme.textPrimary(context),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    if (hasGoal) ...[
-                      SizedBox(
-                        width: 60,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(3),
-                          child: LinearProgressIndicator(
-                            value: goalProgress.clamp(0.0, 1.0),
-                            backgroundColor: AppTheme.subtleFill(context),
-                            color: purple,
-                            minHeight: 6,
+                            color: AppTheme.textTertiary(context),
+                            fontSize: 12,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${(goalProgress * 100).round()}%',
-                        style: TextStyle(
-                          color: AppTheme.textTertiary(context),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
-                    Text(
-                      _lastLoggedText(sorted),
-                      style: TextStyle(
-                        color: AppTheme.textTertiary(context),
-                        fontSize: 12,
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1225,36 +1850,34 @@ class _HomeScreenState extends State<HomeScreen>
     final l10n = AppLocalizations.of(context);
     return GestureDetector(
       onTap: () => _onWeightTap(context),
-      child: SizedBox(
-        height: 110,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.monitor_weight_outlined,
-                size: 32,
-                color: AppTheme.textDisabled(context),
+      behavior: HitTestBehavior.opaque,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.monitor_weight_outlined,
+              size: 32,
+              color: AppTheme.textDisabled(context),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              l10n.home_logWeight,
+              style: TextStyle(
+                color: AppTheme.textSecondary(context),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
-              const SizedBox(height: 4),
-              Text(
-                l10n.home_logWeight,
-                style: TextStyle(
-                  color: AppTheme.textSecondary(context),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              l10n.home_tapToRecord,
+              style: TextStyle(
+                color: AppTheme.textTertiary(context),
+                fontSize: 12,
               ),
-              const SizedBox(height: 2),
-              Text(
-                l10n.home_tapToRecord,
-                style: TextStyle(
-                  color: AppTheme.textTertiary(context),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

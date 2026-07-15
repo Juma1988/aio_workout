@@ -19,7 +19,7 @@ import '../achievements/providers/achievement_provider.dart';
 import '../achievements/widgets/achievement_preview_card.dart';
 import '../dialogs/achivment_dialog.dart';
 import '../dialogs/edit_profile_dialog.dart';
-import '../dialogs/workout_plan_dialog.dart';
+import '../program/plan_hub_screen.dart';
 import '../notifications/notification_settings_screen.dart';
 import '../notifications/services/notification_repository.dart';
 import 'exersise_dialog.dart';
@@ -100,6 +100,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Check avatar file existence asynchronously (avoid blocking main thread).
     final avatarPath = prefs.getString('profile_avatar_path');
     final avatarExists = avatarPath != null && await File(avatarPath).exists();
+    if (avatarPath != null && !avatarExists) {
+      await prefs.remove('profile_avatar_path');
+    }
     // Store or retrieve member-since date (used in profile header).
     final memberSinceStr = prefs.getString('profile_member_since');
     final memberSince = memberSinceStr ?? dateKey(DateTime.now());
@@ -591,7 +594,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   HapticFeedback.lightImpact();
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                        builder: (_) => const WorkoutPlanDialog()),
+                        builder: (_) => const PlanHubScreen()),
                   );
                 },
               ),

@@ -62,7 +62,125 @@
   "profile_title": "الملف الشخصي",
   "profile_editProfile": "تعديل الملف الشخصي",
   "profile_exerciseLibrary": "مكتبة التمارين",
+
+  "exLib_title": "التمارين",
+  "exLib_addTooltip": "إضافة تمرين مخصص",
+  "exLib_searchHint": "ابحث عن تمارين...",
+  "exLib_filterAll": "الكل",
+  "exLib_filterCustom": "★ مخصص",
+  "exLib_clear": "مسح",
+  "exLib_results": "{count} نتيجة",
+  "@exLib_results": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "exLib_resultsIn": "{count} في {scope}",
+  "@exLib_resultsIn": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "scope": {"type": "String"}
+    }
+  },
+  "exLib_chipWithCount": "{label} · {count}",
+  "@exLib_chipWithCount": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "exLib_emptyCustom": "لا توجد تمارين مخصصة بعد.\nاضغط + للإضافة!",
+  "exLib_emptyCustomSearch": "لا توجد تمارين مخصصة تطابق \"{query}\".",
+  "@exLib_emptyCustomSearch": {
+    "placeholders": {
+      "query": {"type": "String"}
+    }
+  },
+  "exLib_emptyCategory": "لا توجد تمارين {category}.",
+  "@exLib_emptyCategory": {
+    "placeholders": {
+      "category": {"type": "String"}
+    }
+  },
+  "exLib_emptyCategorySearch": "لا توجد تمارين {category} تطابق \"{query}\".",
+  "@exLib_emptyCategorySearch": {
+    "placeholders": {
+      "category": {"type": "String"},
+      "query": {"type": "String"}
+    }
+  },
+  "exLib_emptySearch": "لا نتائج لـ \"{query}\".",
+  "@exLib_emptySearch": {
+    "placeholders": {
+      "query": {"type": "String"}
+    }
+  },
+  "exLib_emptyAll": "لا توجد تمارين.\nاضغط + لإضافة تمرين مخصص.",
   "profile_workoutPlan": "خطة التمرين",
+
+  "plan_hubSubtitle": "اختر خطة للعرض، أو أنشئ خطتك الخاصة.",
+  "plan_defaultTitle": "برنامج 12 أسبوعاً",
+  "plan_defaultBadge": "افتراضي",
+  "plan_customBadge": "مخصص",
+  "plan_newPlan": "خطة جديدة",
+  "plan_editPlan": "تعديل الخطة",
+  "plan_cardStats": "{weeks} أسابيع · {exercises} تمارين",
+  "@plan_cardStats": {
+    "placeholders": {
+      "weeks": {"type": "int"},
+      "exercises": {"type": "int"}
+    }
+  },
+  "plan_planName": "اسم الخطة",
+  "plan_planNameHint": "مثال: تجهيز الصيف",
+  "plan_nameRequired": "يرجى إدخال اسم الخطة",
+  "plan_needOneWeek": "أضف أسبوعاً واحداً على الأقل",
+  "plan_save": "حفظ",
+  "plan_saveError": "تعذر حفظ الخطة",
+  "plan_weeksSection": "الأسابيع",
+  "plan_addWeek": "إضافة أسبوع",
+  "plan_removeWeek": "حذف آخر أسبوع",
+  "plan_exerciseCount": "{count} تمارين",
+  "@plan_exerciseCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "plan_dayWithCount": "اليوم {day} · {count} تمارين",
+  "@plan_dayWithCount": {
+    "placeholders": {
+      "day": {"type": "int"},
+      "count": {"type": "int"}
+    }
+  },
+  "plan_pickExercises": "اختر التمارين",
+  "plan_searchExercises": "ابحث عن تمارين...",
+  "plan_filterAll": "الكل",
+  "plan_filterCustom": "★ مخصص",
+  "plan_noExercisesFound": "لا توجد تمارين",
+  "plan_done": "تم",
+  "plan_deleteTitle": "حذف الخطة؟",
+  "plan_deleteMessage": "حذف \"{name}\"؟ لا يمكن التراجع.",
+  "@plan_deleteMessage": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "plan_delete": "حذف",
+  "plan_cancel": "إلغاء",
+  "plan_retry": "إعادة المحاولة",
+  "plan_selectedCount": "{count} محدد",
+  "@plan_selectedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "plan_discardTitle": "تجاهل التغييرات؟",
+  "plan_discardMessage": "لديك تغييرات غير محفوظة. المغادرة دون حفظ؟",
+  "plan_discard": "تجاهل",
+  "plan_saved": "تم حفظ الخطة",
+  "plan_editorHint": "اضغط على يوم لاختيار التمارين. الأيام الفارغة أيام راحة.",
+  "plan_tapToAddExercises": "اضغط لإضافة تمارين",
   "profile_notifications": "الإشعارات",
   "profile_appearance": "المظهر",
   "profile_languageUnits": "اللغة والوحدات",

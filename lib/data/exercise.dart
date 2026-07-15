@@ -295,24 +295,39 @@ class Exercise {
   }
 
   factory Exercise.fromJson(Map<String, dynamic> json) {
+    Level parseLevel(String? name) {
+      if (name == null || name.isEmpty) return Level.beginner;
+      for (final l in Level.values) {
+        if (l.name == name) return l;
+      }
+      return Level.beginner;
+    }
+
     return Exercise(
       uuid: json['uuid'] as String,
       name: json['name'] as String,
       description: json['description'] as String?,
-      isDefault: json['isDefault'] as bool,
-      categoryKey: json['category'] as String,
-      targetMuscleKey: json['targetMuscle'] as String,
-      recommendedLevel: Level.values.byName(json['recommendedLevel'] as String),
+      isDefault: json['isDefault'] as bool? ?? false,
+      categoryKey: (json['category'] as String?) ??
+          (json['categoryKey'] as String?) ??
+          'strength',
+      targetMuscleKey: (json['targetMuscle'] as String?) ??
+          (json['targetMuscleKey'] as String?) ??
+          'full',
+      recommendedLevel: parseLevel(json['recommendedLevel'] as String?),
       levels: (json['levels'] as List<dynamic>? ?? const [])
           .map((e) => ExerciseLevel.fromJson(e as Map<String, dynamic>))
           .toList(),
       equipment: json['equipment'] as String?,
-      tags: (json['tags'] as List<dynamic>? ?? const []).cast<String>(),
+      tags: (json['tags'] as List<dynamic>? ?? const [])
+          .map((t) => t.toString())
+          .toList(),
       videoUrl: json['videoUrl'] as String?,
       imageUrl: json['imageUrl'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.now(),
       updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
+          ? DateTime.tryParse(json['updatedAt'] as String)
           : null,
       createdByUserId: (json['createdByUserId'] as String?) ?? '',
     );
@@ -430,6 +445,34 @@ class ExerciseRef {
           restSecondsBetweenSets ?? this.restSecondsBetweenSets,
       notes: notes ?? this.notes,
     );
+  }
+
+  factory ExerciseRef.fromJson(Map<String, dynamic> json) {
+    return ExerciseRef(
+      exerciseId: json['exerciseId'] as String,
+      chosenLevel: json['chosenLevel'] != null
+          ? Level.values.byName(json['chosenLevel'] as String)
+          : null,
+      sets: (json['sets'] as num?)?.toInt(),
+      reps: (json['reps'] as num?)?.toInt(),
+      durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
+      weightKg: (json['weightKg'] as num?)?.toDouble(),
+      restSecondsBetweenSets: (json['restSecondsBetweenSets'] as num?)?.toInt(),
+      notes: json['notes'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'exerciseId': exerciseId,
+      if (chosenLevel != null) 'chosenLevel': chosenLevel!.name,
+      if (sets != null) 'sets': sets,
+      if (reps != null) 'reps': reps,
+      if (durationSeconds != null) 'durationSeconds': durationSeconds,
+      if (weightKg != null) 'weightKg': weightKg,
+      if (restSecondsBetweenSets != null) 'restSecondsBetweenSets': restSecondsBetweenSets,
+      if (notes != null) 'notes': notes,
+    };
   }
 
   @override

@@ -182,7 +182,186 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profile_exerciseLibrary => 'مكتبة التمارين';
 
   @override
+  String get exLib_title => 'التمارين';
+
+  @override
+  String get exLib_addTooltip => 'إضافة تمرين مخصص';
+
+  @override
+  String get exLib_searchHint => 'ابحث عن تمارين...';
+
+  @override
+  String get exLib_filterAll => 'الكل';
+
+  @override
+  String get exLib_filterCustom => '★ مخصص';
+
+  @override
+  String get exLib_clear => 'مسح';
+
+  @override
+  String exLib_results(int count) {
+    return '$count نتيجة';
+  }
+
+  @override
+  String exLib_resultsIn(int count, String scope) {
+    return '$count في $scope';
+  }
+
+  @override
+  String exLib_chipWithCount(String label, int count) {
+    return '$label · $count';
+  }
+
+  @override
+  String get exLib_emptyCustom => 'لا توجد تمارين مخصصة بعد.\nاضغط + للإضافة!';
+
+  @override
+  String exLib_emptyCustomSearch(String query) {
+    return 'لا توجد تمارين مخصصة تطابق \"$query\".';
+  }
+
+  @override
+  String exLib_emptyCategory(String category) {
+    return 'لا توجد تمارين $category.';
+  }
+
+  @override
+  String exLib_emptyCategorySearch(String category, String query) {
+    return 'لا توجد تمارين $category تطابق \"$query\".';
+  }
+
+  @override
+  String exLib_emptySearch(String query) {
+    return 'لا نتائج لـ \"$query\".';
+  }
+
+  @override
+  String get exLib_emptyAll => 'لا توجد تمارين.\nاضغط + لإضافة تمرين مخصص.';
+
+  @override
   String get profile_workoutPlan => 'خطة التمرين';
+
+  @override
+  String get plan_hubSubtitle => 'اختر خطة للعرض، أو أنشئ خطتك الخاصة.';
+
+  @override
+  String get plan_defaultTitle => 'برنامج 12 أسبوعاً';
+
+  @override
+  String get plan_defaultBadge => 'افتراضي';
+
+  @override
+  String get plan_customBadge => 'مخصص';
+
+  @override
+  String get plan_newPlan => 'خطة جديدة';
+
+  @override
+  String get plan_editPlan => 'تعديل الخطة';
+
+  @override
+  String plan_cardStats(int weeks, int exercises) {
+    return '$weeks أسابيع · $exercises تمارين';
+  }
+
+  @override
+  String get plan_planName => 'اسم الخطة';
+
+  @override
+  String get plan_planNameHint => 'مثال: تجهيز الصيف';
+
+  @override
+  String get plan_nameRequired => 'يرجى إدخال اسم الخطة';
+
+  @override
+  String get plan_needOneWeek => 'أضف أسبوعاً واحداً على الأقل';
+
+  @override
+  String get plan_save => 'حفظ';
+
+  @override
+  String get plan_saveError => 'تعذر حفظ الخطة';
+
+  @override
+  String get plan_weeksSection => 'الأسابيع';
+
+  @override
+  String get plan_addWeek => 'إضافة أسبوع';
+
+  @override
+  String get plan_removeWeek => 'حذف آخر أسبوع';
+
+  @override
+  String plan_exerciseCount(int count) {
+    return '$count تمارين';
+  }
+
+  @override
+  String plan_dayWithCount(int day, int count) {
+    return 'اليوم $day · $count تمارين';
+  }
+
+  @override
+  String get plan_pickExercises => 'اختر التمارين';
+
+  @override
+  String get plan_searchExercises => 'ابحث عن تمارين...';
+
+  @override
+  String get plan_filterAll => 'الكل';
+
+  @override
+  String get plan_filterCustom => '★ مخصص';
+
+  @override
+  String get plan_noExercisesFound => 'لا توجد تمارين';
+
+  @override
+  String get plan_done => 'تم';
+
+  @override
+  String get plan_deleteTitle => 'حذف الخطة؟';
+
+  @override
+  String plan_deleteMessage(String name) {
+    return 'حذف \"$name\"؟ لا يمكن التراجع.';
+  }
+
+  @override
+  String get plan_delete => 'حذف';
+
+  @override
+  String get plan_cancel => 'إلغاء';
+
+  @override
+  String get plan_retry => 'إعادة المحاولة';
+
+  @override
+  String plan_selectedCount(int count) {
+    return '$count محدد';
+  }
+
+  @override
+  String get plan_discardTitle => 'تجاهل التغييرات؟';
+
+  @override
+  String get plan_discardMessage =>
+      'لديك تغييرات غير محفوظة. المغادرة دون حفظ؟';
+
+  @override
+  String get plan_discard => 'تجاهل';
+
+  @override
+  String get plan_saved => 'تم حفظ الخطة';
+
+  @override
+  String get plan_editorHint =>
+      'اضغط على يوم لاختيار التمارين. الأيام الفارغة أيام راحة.';
+
+  @override
+  String get plan_tapToAddExercises => 'اضغط لإضافة تمارين';
 
   @override
   String get profile_notifications => 'الإشعارات';
