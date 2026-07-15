@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/weight_entry.dart';
+import '../data/workout.dart';
 import '../data/workout_log.dart';
+import '../data/workout_plan.dart';
 
 /// Whether [seedMockData] should generate fake records for development/testing.
 /// Always false in release builds — users never see fabricated data.
@@ -28,6 +30,8 @@ class WorkoutStorageService {
 
   static const _weightEntriesKey = 'weight_entries';
   static const _weightGoalKey = 'weight_goal_kg';
+  static const _customWorkoutsKey = 'custom_workouts';
+  static const _userPlansKey = 'user_workout_plans';
 
   static final WorkoutStorageService _instance =
       WorkoutStorageService._();
@@ -241,6 +245,138 @@ class WorkoutStorageService {
     } catch (e) {
       debugPrint('saveWeightGoal error: $e');
     }
+  }
+
+  // ── Custom Workouts ──
+
+  Future<List<Workout>> loadCustomWorkouts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_customWorkoutsKey);
+      if (raw == null) return [];
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list
+          .map((e) => Workout.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('loadCustomWorkouts error: $e');
+      return [];
+    }
+  }
+
+  Future<void> saveCustomWorkouts(List<Workout> workouts) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = jsonEncode(workouts.map((e) => e.toJson()).toList());
+      await prefs.setString(_customWorkoutsKey, raw);
+    } catch (e) {
+      debugPrint('saveCustomWorkouts error: $e');
+    }
+  }
+
+  Future<void> addCustomWorkout(Workout workout) async {
+    try {
+      final workouts = await loadCustomWorkouts();
+      workouts.add(workout);
+      await saveCustomWorkouts(workouts);
+    } catch (e) {
+      debugPrint('addCustomWorkout error: $e');
+    }
+  }
+
+  Future<void> updateCustomWorkout(Workout workout) async {
+    try {
+      final workouts = await loadCustomWorkouts();
+      final idx = workouts.indexWhere((w) => w.uuid == workout.uuid);
+      if (idx != -1) {
+        workouts[idx] = workout;
+        await saveCustomWorkouts(workouts);
+      }
+    } catch (e) {
+      debugPrint('updateCustomWorkout error: $e');
+    }
+  }
+
+  Future<void> deleteCustomWorkout(String uuid) async {
+    try {
+      final workouts = await loadCustomWorkouts();
+      workouts.removeWhere((w) => w.uuid == uuid);
+      await saveCustomWorkouts(workouts);
+    } catch (e) {
+      debugPrint('deleteCustomWorkout error: $e');
+    }
+  }
+
+  // ── User Workout Plans (multi-week custom programs) ──
+
+  Future<List<WorkoutPlan>> loadUserPlans() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_userPlansKey);
+      if (raw == null || raw.isEmpty) return [];
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list
+          .map((e) => WorkoutPlan.fromJson(e as Map<String, dynamic>))
+          .where((p) => !p.isDefault)
+          .toList();
+    } catch (e) {
+      debugPrint('loadUserPlans error: $e');
+      return [];
+    }
+  }
+
+  Future<void> saveUserPlans(List<WorkoutPlan> plans) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final filtered = plans.where((p) => !p.isDefault).toList();
+      final raw = jsonEncode(filtered.map((e) => e.toJson()).toList());
+      await prefs.setString(_userPlansKey, raw);
+    } catch (e) {
+      debugPrint('saveUserPlans error: $e');
+    }
+  }
+
+  Future<void> upsertUserPlan(WorkoutPlan plan) async {
+    if (plan.isDefault) return;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_userPlansKey);
+    List<WorkoutPlan> plans = [];
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final list = jsonDecode(raw) as List<dynamic>;
+        plans = list
+            .map((e) => WorkoutPlan.fromJson(e as Map<String, dynamic>))
+            .where((p) => !p.isDefault)
+            .toList();
+      } catch (e) {
+        debugPrint('upsertUserPlan parse error: $e');
+        // Do not wipe existing data on parse failure.
+        rethrow;
+      }
+    }
+    final idx = plans.indexWhere((p) => p.id == plan.id);
+    if (idx == -1) {
+      plans.add(plan);
+    } else {
+      plans[idx] = plan;
+    }
+    final encoded = jsonEncode(plans.map((e) => e.toJson()).toList());
+    await prefs.setString(_userPlansKey, encoded);
+  }
+
+  Future<void> deleteUserPlan(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_userPlansKey);
+    if (raw == null || raw.isEmpty) return;
+    final list = jsonDecode(raw) as List<dynamic>;
+    final plans = list
+        .map((e) => WorkoutPlan.fromJson(e as Map<String, dynamic>))
+        .where((p) => !p.isDefault && p.id != id)
+        .toList();
+    await prefs.setString(
+      _userPlansKey,
+      jsonEncode(plans.map((e) => e.toJson()).toList()),
+    );
   }
 
   Future<void> seedMockData() async {

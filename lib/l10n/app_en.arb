@@ -62,7 +62,125 @@
   "profile_title": "Profile",
   "profile_editProfile": "Edit Profile",
   "profile_exerciseLibrary": "Exercise Library",
+
+  "exLib_title": "Exercises",
+  "exLib_addTooltip": "Add custom exercise",
+  "exLib_searchHint": "Search exercises...",
+  "exLib_filterAll": "All",
+  "exLib_filterCustom": "★ Custom",
+  "exLib_clear": "Clear",
+  "exLib_results": "{count} results",
+  "@exLib_results": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "exLib_resultsIn": "{count} in {scope}",
+  "@exLib_resultsIn": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "scope": {"type": "String"}
+    }
+  },
+  "exLib_chipWithCount": "{label} · {count}",
+  "@exLib_chipWithCount": {
+    "placeholders": {
+      "label": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "exLib_emptyCustom": "No custom exercises yet.\nTap + to add one!",
+  "exLib_emptyCustomSearch": "No custom exercises match \"{query}\".",
+  "@exLib_emptyCustomSearch": {
+    "placeholders": {
+      "query": {"type": "String"}
+    }
+  },
+  "exLib_emptyCategory": "No {category} exercises.",
+  "@exLib_emptyCategory": {
+    "placeholders": {
+      "category": {"type": "String"}
+    }
+  },
+  "exLib_emptyCategorySearch": "No {category} exercises match \"{query}\".",
+  "@exLib_emptyCategorySearch": {
+    "placeholders": {
+      "category": {"type": "String"},
+      "query": {"type": "String"}
+    }
+  },
+  "exLib_emptySearch": "No matches for \"{query}\".",
+  "@exLib_emptySearch": {
+    "placeholders": {
+      "query": {"type": "String"}
+    }
+  },
+  "exLib_emptyAll": "No exercises.\nTap + to add a custom one.",
   "profile_workoutPlan": "Workout Plan",
+
+  "plan_hubSubtitle": "Choose a plan to view, or create your own.",
+  "plan_defaultTitle": "12-Week Program",
+  "plan_defaultBadge": "Default",
+  "plan_customBadge": "Custom",
+  "plan_newPlan": "New plan",
+  "plan_editPlan": "Edit plan",
+  "plan_cardStats": "{weeks} weeks · {exercises} exercises",
+  "@plan_cardStats": {
+    "placeholders": {
+      "weeks": {"type": "int"},
+      "exercises": {"type": "int"}
+    }
+  },
+  "plan_planName": "Plan name",
+  "plan_planNameHint": "e.g. Summer Shred",
+  "plan_nameRequired": "Please enter a plan name",
+  "plan_needOneWeek": "Add at least one week",
+  "plan_save": "Save",
+  "plan_saveError": "Could not save plan",
+  "plan_weeksSection": "Weeks",
+  "plan_addWeek": "Add week",
+  "plan_removeWeek": "Remove last week",
+  "plan_exerciseCount": "{count} exercises",
+  "@plan_exerciseCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "plan_dayWithCount": "Day {day} · {count} exercises",
+  "@plan_dayWithCount": {
+    "placeholders": {
+      "day": {"type": "int"},
+      "count": {"type": "int"}
+    }
+  },
+  "plan_pickExercises": "Pick exercises",
+  "plan_searchExercises": "Search exercises...",
+  "plan_filterAll": "All",
+  "plan_filterCustom": "★ Custom",
+  "plan_noExercisesFound": "No exercises found",
+  "plan_done": "Done",
+  "plan_deleteTitle": "Delete plan?",
+  "plan_deleteMessage": "Delete \"{name}\"? This cannot be undone.",
+  "@plan_deleteMessage": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "plan_delete": "Delete",
+  "plan_cancel": "Cancel",
+  "plan_retry": "Retry",
+  "plan_selectedCount": "{count} selected",
+  "@plan_selectedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "plan_discardTitle": "Discard changes?",
+  "plan_discardMessage": "You have unsaved changes. Leave without saving?",
+  "plan_discard": "Discard",
+  "plan_saved": "Plan saved",
+  "plan_editorHint": "Tap a day to pick exercises. Empty days are rest days.",
+  "plan_tapToAddExercises": "Tap to add exercises",
   "profile_notifications": "Notifications",
   "profile_appearance": "Appearance",
   "profile_languageUnits": "Language & Units",

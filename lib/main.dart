@@ -16,16 +16,26 @@ import 'features/notifications/services/notification_service.dart';
 import 'features/splash/splash_screen.dart';
 import 'services/workout_storage_service.dart';
 
+bool _firebaseReady = false;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp();
-
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
-  };
+  try {
+    await Firebase.initializeApp();
+    _firebaseReady = true;
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  } catch (e, s) {
+    // Web/desktop often lack FirebaseOptions — app still runs without Crashlytics.
+    debugPrint('Firebase init skipped: $e\n$s');
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+    };
+  }
 
   final localeProvider = LocaleProvider();
   await localeProvider.loadSavedLocale();
@@ -45,7 +55,11 @@ Future<void> _initNotifications(LocaleProvider localeProvider) async {
     final service = NotificationService();
     await service.initialize();
   } catch (e, s) {
-    FirebaseCrashlytics.instance.recordError(e, s, fatal: false);
+    if (_firebaseReady) {
+      FirebaseCrashlytics.instance.recordError(e, s, fatal: false);
+    } else {
+      debugPrint('Notification init error: $e\n$s');
+    }
   }
 }
 

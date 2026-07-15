@@ -128,10 +128,17 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     _emailController.removeListener(_onFieldChanged);
     _weightController.removeListener(_onFieldChanged);
     _heightController.removeListener(_onFieldChanged);
+    final rawAvatar = prefs.getString(_avatarKey);
+    final avatarOk =
+        rawAvatar != null && rawAvatar.isNotEmpty && File(rawAvatar).existsSync();
+    if (rawAvatar != null && !avatarOk) {
+      await prefs.remove(_avatarKey);
+    }
+
     setState(() {
       _name = prefs.getString(_nameKey);
       _email = prefs.getString(_emailKey);
-      _avatarPath = prefs.getString(_avatarKey);
+      _avatarPath = avatarOk ? rawAvatar : null;
       _weightKg = prefs.getDouble(_weightKey);
       _heightCm = prefs.getDouble(_heightKey);
       _gender = prefs.getString(_genderKey) ?? 'male';

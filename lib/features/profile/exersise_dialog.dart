@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show FontFeature, ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/directional_icon.dart';
 import '../../data/exercise.dart';
+import '../../data/exercise_localizer.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/workout_storage_service.dart';
 
 /// Full-screen exercise library page (pushed from Profile).
@@ -29,11 +32,34 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
   final _selectedLevels = <String, _LevelSelection>{};
   Map<String, int> _completionCounts = {};
 
+  /// When categories are scrolled, All/Custom collapse to icon-only.
+  final ScrollController _filterScrollController = ScrollController();
+  bool _filterRailCollapsed = false;
+
+  static const _collapseScrollThreshold = 12.0;
+
   @override
   void initState() {
     super.initState();
     _loadCustoms();
     _loadUsageStats();
+    _filterScrollController.addListener(_onFilterScroll);
+  }
+
+  @override
+  void dispose() {
+    _filterScrollController.removeListener(_onFilterScroll);
+    _filterScrollController.dispose();
+    super.dispose();
+  }
+
+  void _onFilterScroll() {
+    if (!_filterScrollController.hasClients) return;
+    final collapsed =
+        _filterScrollController.offset > _collapseScrollThreshold;
+    if (collapsed != _filterRailCollapsed && mounted) {
+      setState(() => _filterRailCollapsed = collapsed);
+    }
   }
 
   Future<void> _loadUsageStats() async {
@@ -61,9 +87,14 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
       final prefs = await SharedPreferences.getInstance();
       final jsonStr = prefs.getString('custom_exercises');
       if (jsonStr != null && jsonStr.isNotEmpty) {
-        final decoded = (jsonDecode(jsonStr) as List<dynamic>)
-            .map((j) => Exercise.fromJson(j as Map<String, dynamic>))
-            .toList();
+        final decoded = <Exercise>[];
+        for (final j in jsonDecode(jsonStr) as List<dynamic>) {
+          try {
+            decoded.add(Exercise.fromJson(j as Map<String, dynamic>));
+          } catch (_) {
+            // Skip corrupt entries instead of failing the whole screen.
+          }
+        }
         if (mounted) {
           setState(() {
             _customExercises = decoded;
@@ -91,25 +122,33 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
     }
   }
 
+  static const _customFilterKey = 'custom';
+
   List<Exercise> get _allExercises => [
-    ...defaultExercises,
-    ..._customExercises,
-  ];
+        ...defaultExercises,
+        ..._customExercises,
+      ];
+
+  /// Counts for chips (ignore search so chips stay stable while typing).
+  int get _countAll => _allExercises.length;
+
+  int get _countCustom =>
+      _allExercises.where((e) => !e.isDefault).length;
+
+  int _countCategory(String key) =>
+      _allExercises.where((e) => e.categoryKey == key).length;
 
   List<Exercise> get _filteredExercises {
     final q = _search.toLowerCase().trim();
     var list = _allExercises.where((e) {
-      // Apply filter first (category or custom)
       if (_activeFilter != null) {
-        if (_activeFilter == 'custom') {
+        if (_activeFilter == _customFilterKey) {
           if (e.isDefault) return false;
-        } else {
-          // filter by category key
-          if (e.categoryKey != _activeFilter) return false;
+        } else if (e.categoryKey != _activeFilter) {
+          return false;
         }
       }
 
-      // Then search within the filtered set
       if (q.isEmpty) return true;
       final inName = e.name.toLowerCase().contains(q);
       final inDesc = (e.description ?? '').toLowerCase().contains(q);
@@ -117,7 +156,6 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
       return inName || inDesc || inTags;
     }).toList();
 
-    // Sort: defaults first, then by name (but customs will naturally group if filter allows)
     list.sort((a, b) {
       if (a.isDefault != b.isDefault) {
         return a.isDefault ? -1 : 1;
@@ -128,67 +166,167 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
   }
 
   void _updateSearch(String value) {
-    setState(() {
-      _search = value;
-    });
+    setState(() => _search = value);
   }
 
   void _clearSearch() {
-    setState(() {
-      _search = '';
-    });
+    setState(() => _search = '');
   }
 
+  /// Single-select only: choose a chip or "All". No toggle-off on re-tap.
   void _setFilter(String? filter) {
     HapticFeedback.selectionClick();
-    setState(() {
-      // Tapping the active filter again clears it (back to All)
-      _activeFilter = (_activeFilter == filter) ? null : filter;
-    });
+    setState(() => _activeFilter = filter);
+  }
+
+  void _clearFilter() {
+    HapticFeedback.selectionClick();
+    setState(() => _activeFilter = null);
   }
 
   Widget _buildFilterChip({
     required String label,
+    required int count,
     required bool selected,
     required VoidCallback onTap,
     Color? color,
+    IconData? icon,
+    /// Icon-only mode (All/Custom when categories are scrolled).
+    bool compact = false,
   }) {
-    final chipColor = color ?? AppTheme.textSecondary(context);
-    final bgColor = selected
-        ? chipColor.withValues(alpha: 0.85)
-        : chipColor.withValues(alpha: 0.12);
-    final borderColor = selected
-        ? Colors.transparent
-        : chipColor.withValues(alpha: 0.3);
-    final textColor = selected ? Colors.white : chipColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = color ?? Theme.of(context).colorScheme.primary;
+    final idleFg = AppTheme.textSecondary(context);
+    final idleBg = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : Colors.black.withValues(alpha: 0.04);
+    final idleBorder = isDark
+        ? Colors.white.withValues(alpha: 0.10)
+        : Colors.black.withValues(alpha: 0.06);
 
-    return AnimatedContainer(
-      duration: AppTheme.kAnimFast,
-      curve: AppTheme.kEaseOut,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: borderColor, width: selected ? 0 : 1),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
-          splashColor: chipColor.withValues(alpha: 0.2),
-          highlightColor: chipColor.withValues(alpha: 0.1),
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 40),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              alignment: Alignment.center,
-              child: Text(
-              label,
-              style: TextStyle(
-                color: textColor,
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                height: 1.0,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$label, $count',
+      child: AnimatedScale(
+        scale: selected ? 1.0 : 0.98,
+        duration: AppTheme.kAnimFast,
+        curve: AppTheme.kEaseOut,
+        child: AnimatedContainer(
+          duration: AppTheme.kAnimMedium,
+          curve: AppTheme.kEaseOut,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: selected
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      accent,
+                      Color.lerp(accent, Colors.black, 0.18)!,
+                    ],
+                  )
+                : null,
+            color: selected ? null : idleBg,
+            border: Border.all(
+              color: selected ? accent.withValues(alpha: 0.0) : idleBorder,
+              width: 1,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: accent.withValues(alpha: isDark ? 0.45 : 0.28),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                      spreadRadius: -2,
+                    ),
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.12),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(999),
+              splashColor: accent.withValues(alpha: 0.18),
+              highlightColor: accent.withValues(alpha: 0.08),
+              child: AnimatedSize(
+                duration: AppTheme.kAnimMedium,
+                curve: AppTheme.kEaseOut,
+                alignment: Alignment.centerLeft,
+                child: compact
+                    ? SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Center(
+                          child: Icon(
+                            icon ?? Icons.circle,
+                            size: 18,
+                            color: selected ? Colors.white : accent,
+                          ),
+                        ),
+                      )
+                    : Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (icon != null) ...[
+                              Icon(
+                                icon,
+                                size: 15,
+                                color: selected ? Colors.white : accent,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Text(
+                              label,
+                              style: TextStyle(
+                                color: selected ? Colors.white : idleFg,
+                                fontSize: 13,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w600,
+                                letterSpacing: selected ? 0.2 : 0,
+                                height: 1.0,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? Colors.white.withValues(alpha: 0.22)
+                                    : accent.withValues(
+                                        alpha: isDark ? 0.16 : 0.12,
+                                      ),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                '$count',
+                                style: TextStyle(
+                                  color: selected ? Colors.white : accent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.0,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
               ),
             ),
           ),
@@ -197,27 +335,33 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
     );
   }
 
-  String _getEmptyMessage() {
+  String _getEmptyMessage(AppLocalizations l10n) {
     final hasSearch = _search.trim().isNotEmpty;
     final hasFilter = _activeFilter != null;
 
-    if (hasFilter && _activeFilter == 'custom') {
+    if (hasFilter && _activeFilter == _customFilterKey) {
       return hasSearch
-          ? 'No custom exercises match "$_search".'
-          : 'No custom exercises yet.\nTap + to add one!';
+          ? l10n.exLib_emptyCustomSearch(_search.trim())
+          : l10n.exLib_emptyCustom;
     }
 
     if (hasFilter) {
-      final cat = getCategory(_activeFilter!);
-      final catLabel = cat?.label ?? _activeFilter!;
+      final catLabel =
+          ExerciseLocalizer.categoryLabel(l10n, _activeFilter!);
       return hasSearch
-          ? 'No $catLabel exercises match "$_search".'
-          : 'No $catLabel exercises.';
+          ? l10n.exLib_emptyCategorySearch(catLabel, _search.trim())
+          : l10n.exLib_emptyCategory(catLabel);
     }
 
     return hasSearch
-        ? 'No matches for "$_search".'
-        : 'No exercises.\nTap + to add a custom one.';
+        ? l10n.exLib_emptySearch(_search.trim())
+        : l10n.exLib_emptyAll;
+  }
+
+  String _scopeLabel(AppLocalizations l10n) {
+    if (_activeFilter == null) return '';
+    if (_activeFilter == _customFilterKey) return l10n.plan_customBadge;
+    return ExerciseLocalizer.categoryLabel(l10n, _activeFilter!);
   }
 
   bool _isNameTaken(String name, String? excludeUuid) {
@@ -443,15 +587,17 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final filtered = _filteredExercises;
+    final hasActiveFilter = _activeFilter != null;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Exercises'),
+        title: Text(l10n.exLib_title),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: 'Add custom exercise',
+            tooltip: l10n.exLib_addTooltip,
             onPressed: () => _openAddDialog(),
           ),
         ],
@@ -459,137 +605,307 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
       body: SafeArea(
         child: Column(
           children: [
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: TextField(
-                onChanged: _updateSearch,
-                decoration: InputDecoration(
-                  hintText: 'Search exercises...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _search.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: _clearSearch,
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: AppTheme.cardColor(context),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: AppTheme.subtleFill(context, 0.2),
+            // Premium sticky filter chrome
+            ClipRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .scaffoldBackgroundColor
+                        .withValues(alpha: 0.88),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppTheme.subtleFill(context, 0.08),
+                      ),
                     ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: AppTheme.subtleFill(context, 0.2),
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Pill search
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+                        child: TextField(
+                          onChanged: _updateSearch,
+                          style: TextStyle(
+                            color: AppTheme.textPrimary(context),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: l10n.exLib_searchHint,
+                            hintStyle: TextStyle(
+                              color: AppTheme.textTertiary(context),
+                              fontWeight: FontWeight.w400,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search_rounded,
+                              color: AppTheme.textTertiary(context),
+                            ),
+                            suffixIcon: _search.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(
+                                      Icons.cancel_rounded,
+                                      color: AppTheme.textTertiary(context),
+                                    ),
+                                    onPressed: _clearSearch,
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: AppTheme.cardColor(context),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: AppTheme.subtleFill(context, 0.08),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.55),
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Filter rail: glass track + chips
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            color: AppTheme.cardColor(context)
+                                .withValues(alpha: 0.65),
+                            border: Border.all(
+                              color: AppTheme.subtleFill(context, 0.08),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(
+                                  alpha:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? 0.25
+                                          : 0.04,
+                                ),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              // Stay fixed; collapse to icons when rail scrolls.
+                              _buildFilterChip(
+                                label: l10n.exLib_filterAll,
+                                count: _countAll,
+                                selected: _activeFilter == null,
+                                onTap: () => _setFilter(null),
+                                icon: Icons.apps_rounded,
+                                color:
+                                    Theme.of(context).colorScheme.primary,
+                                compact: _filterRailCollapsed,
+                              ),
+                              AnimatedContainer(
+                                duration: AppTheme.kAnimFast,
+                                width: _filterRailCollapsed ? 4 : 6,
+                              ),
+                              _buildFilterChip(
+                                label: l10n.exLib_filterCustom,
+                                count: _countCustom,
+                                selected:
+                                    _activeFilter == _customFilterKey,
+                                onTap: () =>
+                                    _setFilter(_customFilterKey),
+                                color: AppTheme.achievementGreen,
+                                icon: Icons.auto_awesome_rounded,
+                                compact: _filterRailCollapsed,
+                              ),
+                              AnimatedContainer(
+                                duration: AppTheme.kAnimFast,
+                                width: _filterRailCollapsed ? 4 : 6,
+                              ),
+                              Expanded(
+                                child: ShaderMask(
+                                  shaderCallback: (bounds) {
+                                    return LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: [
+                                        Colors.white,
+                                        Colors.white,
+                                        Colors.white
+                                            .withValues(alpha: 0.0),
+                                      ],
+                                      stops: const [0.0, 0.88, 1.0],
+                                    ).createShader(bounds);
+                                  },
+                                  blendMode: BlendMode.dstIn,
+                                  child: SingleChildScrollView(
+                                    controller: _filterScrollController,
+                                    scrollDirection: Axis.horizontal,
+                                    physics:
+                                        const BouncingScrollPhysics(),
+                                    child: Row(
+                                      children: [
+                                        ...exerciseCategories.values
+                                            .map((cat) {
+                                          final count =
+                                              _countCategory(cat.key);
+                                          final label = ExerciseLocalizer
+                                              .categoryLabel(
+                                            l10n,
+                                            cat.key,
+                                          );
+                                          return Padding(
+                                            padding:
+                                                const EdgeInsetsDirectional
+                                                    .only(end: 6),
+                                            child: _buildFilterChip(
+                                              label: label,
+                                              count: count,
+                                              selected: _activeFilter ==
+                                                  cat.key,
+                                              onTap: () =>
+                                                  _setFilter(cat.key),
+                                              color: cat.color,
+                                              icon: exerciseCategoryIcons[
+                                                      cat.key] ??
+                                                  Icons.fitness_center,
+                                            ),
+                                          );
+                                        }),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Results + premium Clear pill
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 16, 12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TweenAnimationBuilder<int>(
+                                key: ValueKey(
+                                  '${filtered.length}-$_activeFilter',
+                                ),
+                                tween: IntTween(
+                                  begin: 0,
+                                  end: filtered.length,
+                                ),
+                                duration: AppTheme.kAnimFast,
+                                curve: AppTheme.kEaseOut,
+                                builder: (context, animatedCount, _) {
+                                  final text = hasActiveFilter
+                                      ? l10n.exLib_resultsIn(
+                                          animatedCount,
+                                          _scopeLabel(l10n),
+                                        )
+                                      : l10n.exLib_results(animatedCount);
+                                  return Text(
+                                    text,
+                                    style: TextStyle(
+                                      color:
+                                          AppTheme.textTertiary(context),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            AnimatedSwitcher(
+                              duration: AppTheme.kAnimFast,
+                              child: hasActiveFilter
+                                  ? Material(
+                                      key: const ValueKey('clear'),
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: _clearFilter,
+                                        borderRadius:
+                                            BorderRadius.circular(999),
+                                        child: Container(
+                                          padding:
+                                              const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(999),
+                                            border: Border.all(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                                  .withValues(alpha: 0.35),
+                                            ),
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                                .withValues(alpha: 0.10),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                Icons.close_rounded,
+                                                size: 14,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                l10n.exLib_clear,
+                                                style: TextStyle(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .primary,
+                                                  fontWeight:
+                                                      FontWeight.w700,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(
+                                      key: ValueKey('no-clear'),
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
 
-            // Filter chips row (categories + Custom + All)
-            // Mobile-first horizontal "tags" (with smooth AnimatedContainer + InkWell selection).
-            // "★ Custom" isolates only !isDefault exercises.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                // Subtle bounce on iOS, natural on Android
-                physics: const BouncingScrollPhysics(),
-                child: Row(
-                  children: [
-                    _buildFilterChip(
-                      label: 'All',
-                      selected: _activeFilter == null,
-                      onTap: () => _setFilter(null),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildFilterChip(
-                      label: 'Custom',
-                      selected: _activeFilter == 'custom',
-                      onTap: () => _setFilter('custom'),
-                      color: AppTheme.achievementGreen,
-                    ),
-                    const SizedBox(width: 8),
-                    ...exerciseCategories.values.map((cat) {
-                      final isSelected = _activeFilter == cat.key;
-                      return Padding(
-                        padding: const EdgeInsetsDirectional.only(end: 8),
-                        child: _buildFilterChip(
-                          label: cat.label,
-                          selected: isSelected,
-                          onTap: () => _setFilter(cat.key),
-                          color: cat.color,
-                        ),
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            ),
-
-            // Live results count + active filter context (animated)
-            // Placed between filters and the list for immediate feedback.
-            // Uses the same subtle styling language as the rest of the app.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
-              child: Row(
-                children: [
-                  TweenAnimationBuilder<int>(
-                    key: ValueKey(filtered.length),
-                    tween: Tween(begin: 0, end: filtered.length),
-                    duration: AppTheme.kAnimFast,
-                    curve: AppTheme.kEaseOut,
-                    builder: (context, animatedCount, _) {
-                      final label = _activeFilter == 'custom'
-                          ? 'custom'
-                          : (_activeFilter != null
-                                ? (getCategory(
-                                        _activeFilter!,
-                                      )?.label.toLowerCase() ??
-                                      _activeFilter!)
-                                : 'exercise');
-                      return Text(
-                        '$animatedCount $label${animatedCount == 1 ? '' : 's'}',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary(context),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      );
-                    },
-                  ),
-                  if (_activeFilter != null && _activeFilter != 'custom') ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.subtleFill(context, 0.1),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        'filtered',
-                        style: TextStyle(
-                          color: AppTheme.textTertiary(context),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            // List content — wrapped for smooth cross-fade when filter or search changes.
-            // Uses AppTheme.kAnimFast + kEaseOut for consistent, battery-friendly motion.
-            // The ValueKey forces the switcher to treat the content as "new" and run the transition.
             Expanded(
               child: AnimatedSwitcher(
                 duration: AppTheme.kAnimFast,
@@ -600,38 +916,46 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : filtered.isEmpty
-                    ? Center(
-                        key: ValueKey('empty-$_activeFilter-$_search'),
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Text(
-                            _getEmptyMessage(),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: AppTheme.textSecondary(context),
-                              fontSize: 15,
+                        ? Center(
+                            key: ValueKey(
+                              'empty-$_activeFilter-$_search',
                             ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Text(
+                                _getEmptyMessage(l10n),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary(context),
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                          )
+                        : ListView.separated(
+                            key: ValueKey(
+                              'list-$_activeFilter-$_search',
+                            ),
+                            padding:
+                                const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final ex = filtered[index];
+                              return _ExerciseCard(
+                                exercise: ex,
+                                activeSelection:
+                                    _selectedLevels[ex.uuid],
+                                timesCompleted:
+                                    _completionCounts[ex.uuid] ?? 0,
+                                onTap: () => _showDetail(ex),
+                                onLongPress: ex.isDefault
+                                    ? null
+                                    : () => _showCardActions(ex),
+                              );
+                            },
                           ),
-                        ),
-                      )
-                    : ListView.separated(
-                        key: ValueKey('list-$_activeFilter-$_search'),
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final ex = filtered[index];
-                          return _ExerciseCard(
-                            exercise: ex,
-                            activeSelection: _selectedLevels[ex.uuid],
-                            timesCompleted: _completionCounts[ex.uuid] ?? 0,
-                            onTap: () => _showDetail(ex),
-                            onLongPress: ex.isDefault
-                                ? null
-                                : () => _showCardActions(ex),
-                          );
-                        },
-                      ),
               ),
             ),
           ],
@@ -703,12 +1027,17 @@ class _ExerciseCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
-            // Background icon centered
-            Center(
-              child: Icon(
-                icon,
-                size: 96,
-                color: catColor.withValues(alpha: 0.08),
+            // Fill the card first, then center — plain Center in a Stack
+            // sits top-left when height is content-sized (ListView).
+            Positioned.fill(
+              child: Center(
+                child: IgnorePointer(
+                  child: Icon(
+                    icon,
+                    size: 96,
+                    color: catColor.withValues(alpha: 0.08),
+                  ),
+                ),
               ),
             ),
             Padding(

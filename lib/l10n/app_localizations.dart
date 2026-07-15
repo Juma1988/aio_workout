@@ -440,11 +440,317 @@ abstract class AppLocalizations {
   /// **'Exercise Library'**
   String get profile_exerciseLibrary;
 
+  /// No description provided for @exLib_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Exercises'**
+  String get exLib_title;
+
+  /// No description provided for @exLib_addTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add custom exercise'**
+  String get exLib_addTooltip;
+
+  /// No description provided for @exLib_searchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search exercises...'**
+  String get exLib_searchHint;
+
+  /// No description provided for @exLib_filterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get exLib_filterAll;
+
+  /// No description provided for @exLib_filterCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'★ Custom'**
+  String get exLib_filterCustom;
+
+  /// No description provided for @exLib_clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get exLib_clear;
+
+  /// No description provided for @exLib_results.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} results'**
+  String exLib_results(int count);
+
+  /// No description provided for @exLib_resultsIn.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} in {scope}'**
+  String exLib_resultsIn(int count, String scope);
+
+  /// No description provided for @exLib_chipWithCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{label} · {count}'**
+  String exLib_chipWithCount(String label, int count);
+
+  /// No description provided for @exLib_emptyCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'No custom exercises yet.\nTap + to add one!'**
+  String get exLib_emptyCustom;
+
+  /// No description provided for @exLib_emptyCustomSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'No custom exercises match \"{query}\".'**
+  String exLib_emptyCustomSearch(String query);
+
+  /// No description provided for @exLib_emptyCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'No {category} exercises.'**
+  String exLib_emptyCategory(String category);
+
+  /// No description provided for @exLib_emptyCategorySearch.
+  ///
+  /// In en, this message translates to:
+  /// **'No {category} exercises match \"{query}\".'**
+  String exLib_emptyCategorySearch(String category, String query);
+
+  /// No description provided for @exLib_emptySearch.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches for \"{query}\".'**
+  String exLib_emptySearch(String query);
+
+  /// No description provided for @exLib_emptyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'No exercises.\nTap + to add a custom one.'**
+  String get exLib_emptyAll;
+
   /// No description provided for @profile_workoutPlan.
   ///
   /// In en, this message translates to:
   /// **'Workout Plan'**
   String get profile_workoutPlan;
+
+  /// No description provided for @plan_hubSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a plan to view, or create your own.'**
+  String get plan_hubSubtitle;
+
+  /// No description provided for @plan_defaultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'12-Week Program'**
+  String get plan_defaultTitle;
+
+  /// No description provided for @plan_defaultBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get plan_defaultBadge;
+
+  /// No description provided for @plan_customBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get plan_customBadge;
+
+  /// No description provided for @plan_newPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'New plan'**
+  String get plan_newPlan;
+
+  /// No description provided for @plan_editPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit plan'**
+  String get plan_editPlan;
+
+  /// No description provided for @plan_cardStats.
+  ///
+  /// In en, this message translates to:
+  /// **'{weeks} weeks · {exercises} exercises'**
+  String plan_cardStats(int weeks, int exercises);
+
+  /// No description provided for @plan_planName.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan name'**
+  String get plan_planName;
+
+  /// No description provided for @plan_planNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Summer Shred'**
+  String get plan_planNameHint;
+
+  /// No description provided for @plan_nameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a plan name'**
+  String get plan_nameRequired;
+
+  /// No description provided for @plan_needOneWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least one week'**
+  String get plan_needOneWeek;
+
+  /// No description provided for @plan_save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get plan_save;
+
+  /// No description provided for @plan_saveError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save plan'**
+  String get plan_saveError;
+
+  /// No description provided for @plan_weeksSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Weeks'**
+  String get plan_weeksSection;
+
+  /// No description provided for @plan_addWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Add week'**
+  String get plan_addWeek;
+
+  /// No description provided for @plan_removeWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove last week'**
+  String get plan_removeWeek;
+
+  /// No description provided for @plan_exerciseCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} exercises'**
+  String plan_exerciseCount(int count);
+
+  /// No description provided for @plan_dayWithCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Day {day} · {count} exercises'**
+  String plan_dayWithCount(int day, int count);
+
+  /// No description provided for @plan_pickExercises.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick exercises'**
+  String get plan_pickExercises;
+
+  /// No description provided for @plan_searchExercises.
+  ///
+  /// In en, this message translates to:
+  /// **'Search exercises...'**
+  String get plan_searchExercises;
+
+  /// No description provided for @plan_filterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get plan_filterAll;
+
+  /// No description provided for @plan_filterCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'★ Custom'**
+  String get plan_filterCustom;
+
+  /// No description provided for @plan_noExercisesFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No exercises found'**
+  String get plan_noExercisesFound;
+
+  /// No description provided for @plan_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get plan_done;
+
+  /// No description provided for @plan_deleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete plan?'**
+  String get plan_deleteTitle;
+
+  /// No description provided for @plan_deleteMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"? This cannot be undone.'**
+  String plan_deleteMessage(String name);
+
+  /// No description provided for @plan_delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get plan_delete;
+
+  /// No description provided for @plan_cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get plan_cancel;
+
+  /// No description provided for @plan_retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get plan_retry;
+
+  /// No description provided for @plan_selectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String plan_selectedCount(int count);
+
+  /// No description provided for @plan_discardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get plan_discardTitle;
+
+  /// No description provided for @plan_discardMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved changes. Leave without saving?'**
+  String get plan_discardMessage;
+
+  /// No description provided for @plan_discard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get plan_discard;
+
+  /// No description provided for @plan_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan saved'**
+  String get plan_saved;
+
+  /// No description provided for @plan_editorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a day to pick exercises. Empty days are rest days.'**
+  String get plan_editorHint;
+
+  /// No description provided for @plan_tapToAddExercises.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to add exercises'**
+  String get plan_tapToAddExercises;
 
   /// No description provided for @profile_notifications.
   ///
