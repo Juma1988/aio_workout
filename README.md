@@ -211,6 +211,20 @@ AIO Workout works wherever you are:
 
 ---
 
+## 📲 Download
+
+<div align="center">
+
+<a href="https://play.google.com/store/apps/details?id=com.i1988.aio_workout">
+  <img alt="Get it on Google Play" src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" width="200">
+</a>
+
+</div>
+
+> 📌 **Note:** Coming soon to Google Play Store!
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
