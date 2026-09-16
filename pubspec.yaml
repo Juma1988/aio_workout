@@ -27,6 +27,40 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  image_path: "assets/icon/01.png"
+  
+  # Android Configuration
+  android:
+    enable: true
+    adaptive_icon_background: "#02569B"
+    adaptive_icon_foreground: "assets/icon/01.png"
+    adaptive_icon_inset: 25%
+    
+  # iOS Configuration  
+  ios:
+    enable: true
+    icon_size: 1024
+    icon_background_color: "#02569B"
+    
+  # Web Configuration
+  web:
+    enable: true
+    image_path: "assets/icon/01.png"
+    background_color: "#02569B"
+    theme_color: "#02569B"
+    
+  # Windows Configuration
+  windows:
+    enable: true
+    image_path: "assets/icon/01.ico"
+    
+  # macOS Configuration
+  macos:
+    enable: true
+    image_path: "assets/icon/01.png"
 
 flutter:
   generate: true
