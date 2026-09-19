@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/colored_icon_box.dart';
 import '../../l10n/app_localizations.dart';
+
 import 'services/notification_repository.dart';
 import 'services/notification_service.dart';
 import 'widgets/achievement_dialog.dart';
@@ -376,7 +377,11 @@ class _NotificationSettingsScreenState
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Column(
+              children: [
+                const Expanded(child: Center(child: CircularProgressIndicator())),
+              ],
+            )
           : ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [

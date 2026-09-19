@@ -5,10 +5,10 @@ import '../../core/theme/app_theme.dart';
 import '../../data/workout_plan.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/workout_storage_service.dart';
-import 'plan_editor_screen.dart';
-import 'workout_plan_screen.dart';
 
-/// List of workout plans: built-in default + user plans + add card.
+import 'plan_editor_screen.dart';
+
+/// List of user-created workout plans and the add-plan action.
 class PlanHubScreen extends StatefulWidget {
   const PlanHubScreen({super.key});
 
@@ -46,13 +46,6 @@ class _PlanHubScreenState extends State<PlanHubScreen> {
         _loading = false;
       });
     }
-  }
-
-  Future<void> _openDefault() async {
-    HapticFeedback.lightImpact();
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const WorkoutPlanScreen()),
-    );
   }
 
   Future<void> _openCreate() async {
@@ -119,7 +112,10 @@ class _PlanHubScreenState extends State<PlanHubScreen> {
       appBar: AppBar(
         title: Text(l10n.profile_workoutPlan),
       ),
-      body: _loading
+       body: Column(
+         children: [
+            Expanded(
+             child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(
@@ -161,15 +157,7 @@ class _PlanHubScreenState extends State<PlanHubScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _PlanCard(
-                        title: l10n.plan_defaultTitle,
-                        weeks: WorkoutPlan.defaultPlanWeeks,
-                        exercises: WorkoutPlan.defaultPlanExerciseTotal(),
-                        isDefault: true,
-                        onTap: _openDefault,
-                      ),
-                      const SizedBox(height: 12),
-                      ..._plans.map(
+                       ..._plans.map(
                         (p) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _PlanCard(
@@ -187,9 +175,12 @@ class _PlanHubScreenState extends State<PlanHubScreen> {
                         onTap: _openCreate,
                       ),
                     ],
-                  ),
-                ),
-    );
+               ),
+             ),
+           ),
+         ],
+       ),
+     );
   }
 }
 

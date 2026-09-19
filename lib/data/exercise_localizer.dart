@@ -26,10 +26,10 @@ class ExerciseLocalizer {
         return l10n.exercise_overheadpress_name;
       case 'ex-jumpingjacks-001':
         return l10n.exercise_jumpingjacks_name;
-      case 'ex-deadbug-001':
-        return l10n.exercise_deadbug_name;
       case 'ex-bicepcurls-001':
         return l10n.exercise_bicepcurls_name;
+      case 'ex-deadbug-001':
+        return l10n.exercise_deadbug_name;
       case 'ex-highkneemarch-001':
         return l10n.exercise_highkneemarch_name;
       case 'ex-glutebridge-001':
@@ -38,8 +38,6 @@ class ExerciseLocalizer {
         return l10n.exercise_birddog_name;
       case 'ex-sidelyinglegraise-001':
         return l10n.exercise_sidelyinglegraise_name;
-      case 'ex-rest-001':
-        return l10n.exercise_rest_name;
       default:
         return uuid;
     }
@@ -60,10 +58,10 @@ class ExerciseLocalizer {
         return l10n.exercise_overheadpress_desc;
       case 'ex-jumpingjacks-001':
         return l10n.exercise_jumpingjacks_desc;
-      case 'ex-deadbug-001':
-        return l10n.exercise_deadbug_desc;
       case 'ex-bicepcurls-001':
         return l10n.exercise_bicepcurls_desc;
+      case 'ex-deadbug-001':
+        return l10n.exercise_deadbug_desc;
       case 'ex-highkneemarch-001':
         return l10n.exercise_highkneemarch_desc;
       case 'ex-glutebridge-001':
@@ -72,8 +70,6 @@ class ExerciseLocalizer {
         return l10n.exercise_birddog_desc;
       case 'ex-sidelyinglegraise-001':
         return l10n.exercise_sidelyinglegraise_desc;
-      case 'ex-rest-001':
-        return l10n.exercise_rest_desc;
       default:
         return '';
     }
@@ -146,6 +142,26 @@ class ExerciseLocalizer {
         return l10n.level_custom;
       default:
         return levelName;
+    }
+  }
+
+  // ── Equipment ──────────────────────────────────────────────────
+
+  /// Returns the localized equipment label. Known equipment kinds use the
+  /// ARB strings; custom user-entered equipment falls back to the raw text
+  /// so nothing the user typed is ever lost or mistranslated.
+  static String equipmentLabel(AppLocalizations l10n, String? equipment) {
+    final key = (equipment ?? '').trim().toLowerCase();
+    switch (key) {
+      case '':
+        return '';
+      case 'bodyweight':
+        return l10n.equipment_bodyweight;
+      case 'dumbbells':
+      case 'dumbbell':
+        return l10n.equipment_dumbbells;
+      default:
+        return (equipment ?? '').trim();
     }
   }
 

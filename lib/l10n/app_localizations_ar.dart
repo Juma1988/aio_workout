@@ -291,6 +291,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get plan_addWeek => 'إضافة أسبوع';
 
   @override
+  String get plan_cloneWeek => 'نسخ أسبوع';
+
+  @override
   String get plan_removeWeek => 'حذف آخر أسبوع';
 
   @override

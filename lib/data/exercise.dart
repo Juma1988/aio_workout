@@ -24,110 +24,43 @@ enum Level {
 
   /// Returns the localized level label for display purposes.
   /// Uses [ExerciseLocalizer.levelLabel] to look up the ARB key.
+  /// Prefer this over [label] anywhere user-facing.
   String localized(AppLocalizations l10n) =>
       ExerciseLocalizer.levelLabel(l10n, name);
-
-  Color get color {
-    switch (this) {
-      case Level.beginner:
-        return const Color(0xFF43A047);
-      case Level.intermediate:
-        return const Color(0xFFFFA000);
-      case Level.advanced:
-        return const Color(0xFFE53935);
-      case Level.custom:
-        return const Color(0xFF8E24AA);
-    }
-  }
 }
 
+/// Category / muscle registries expose keys only. Colors and icons live in
+/// `core/theme/exercise_visuals.dart`; localized labels come from
+/// [ExerciseLocalizer]. The English [ExerciseCategory.label] /
+/// [TargetMuscle.label] strings are debug identifiers, not display copy.
 const Map<String, ExerciseCategory> exerciseCategories = {
-  'strength': ExerciseCategory(
-    key: 'strength',
-    label: 'Strength',
-    color: Color(0xFFFF5722),
-  ),
-  'cardio': ExerciseCategory(
-    key: 'cardio',
-    label: 'Cardio',
-    color: Color(0xFF4CAF50),
-  ),
-  'core': ExerciseCategory(
-    key: 'core',
-    label: 'Core',
-    color: Color(0xFF2196F3),
-  ),
-  'flexibility': ExerciseCategory(
-    key: 'flexibility',
-    label: 'Flexibility',
-    color: Color(0xFF9C27B0),
-  ),
-  'fullbody': ExerciseCategory(
-    key: 'fullbody',
-    label: 'Full Body',
-    color: Color(0xFFF44336),
-  ),
-  'upperbody': ExerciseCategory(
-    key: 'upperbody',
-    label: 'Upper Body',
-    color: Color(0xFFFF9800),
-  ),
-  'lowerbody': ExerciseCategory(
-    key: 'lowerbody',
-    label: 'Lower Body',
-    color: Color(0xFF00BCD4),
-  ),
-};
-
-const Map<String, IconData> exerciseCategoryIcons = {
-  'strength': Icons.fitness_center,
-  'cardio': Icons.directions_run,
-  'core': Icons.sync_alt,
-  'flexibility': Icons.self_improvement,
-  'fullbody': Icons.whatshot,
-  'upperbody': Icons.arrow_upward,
-  'lowerbody': Icons.arrow_downward,
+  'strength': ExerciseCategory(key: 'strength', label: 'Strength'),
+  'cardio': ExerciseCategory(key: 'cardio', label: 'Cardio'),
+  'core': ExerciseCategory(key: 'core', label: 'Core'),
+  'flexibility': ExerciseCategory(key: 'flexibility', label: 'Flexibility'),
+  'fullbody': ExerciseCategory(key: 'fullbody', label: 'Full Body'),
+  'upperbody': ExerciseCategory(key: 'upperbody', label: 'Upper Body'),
+  'lowerbody': ExerciseCategory(key: 'lowerbody', label: 'Lower Body'),
 };
 
 const Map<String, TargetMuscle> targetMuscles = {
-  'chest': TargetMuscle(key: 'chest', label: 'Chest', color: Color(0xFFFF5722)),
-  'back': TargetMuscle(key: 'back', label: 'Back', color: Color(0xFF2196F3)),
-  'shoulders': TargetMuscle(
-    key: 'shoulders',
-    label: 'Shoulders',
-    color: Color(0xFFFF9800),
-  ),
-  'arms': TargetMuscle(key: 'arms', label: 'Arms', color: Color(0xFF4CAF50)),
-  'legs': TargetMuscle(key: 'legs', label: 'Legs', color: Color(0xFF00BCD4)),
-  'core': TargetMuscle(key: 'core', label: 'Core', color: Color(0xFF9C27B0)),
-  'fullbody': TargetMuscle(
-    key: 'fullbody',
-    label: 'Full Body',
-    color: Color(0xFFF44336),
-  ),
-  'cardio': TargetMuscle(
-    key: 'cardio',
-    label: 'Cardio',
-    color: Color(0xFFE91E63),
-  ),
+  'chest': TargetMuscle(key: 'chest', label: 'Chest'),
+  'back': TargetMuscle(key: 'back', label: 'Back'),
+  'shoulders': TargetMuscle(key: 'shoulders', label: 'Shoulders'),
+  'arms': TargetMuscle(key: 'arms', label: 'Arms'),
+  'legs': TargetMuscle(key: 'legs', label: 'Legs'),
+  'core': TargetMuscle(key: 'core', label: 'Core'),
+  'fullbody': TargetMuscle(key: 'fullbody', label: 'Full Body'),
+  'cardio': TargetMuscle(key: 'cardio', label: 'Cardio'),
 };
 
 class ExerciseCategory {
-  static const unknown = ExerciseCategory(
-    key: 'other',
-    label: 'Other',
-    color: Color(0xFF9E9E9E),
-  );
+  static const unknown = ExerciseCategory(key: 'other', label: 'Other');
 
   final String key;
   final String label;
-  final Color color;
 
-  const ExerciseCategory({
-    required this.key,
-    required this.label,
-    required this.color,
-  });
+  const ExerciseCategory({required this.key, required this.label});
 
   @override
   bool operator ==(Object other) =>
@@ -144,21 +77,12 @@ class ExerciseCategory {
 }
 
 class TargetMuscle {
-  static const unknown = TargetMuscle(
-    key: 'other',
-    label: 'Other',
-    color: Color(0xFF9E9E9E),
-  );
+  static const unknown = TargetMuscle(key: 'other', label: 'Other');
 
   final String key;
   final String label;
-  final Color color;
 
-  const TargetMuscle({
-    required this.key,
-    required this.label,
-    required this.color,
-  });
+  const TargetMuscle({required this.key, required this.label});
 
   @override
   bool operator ==(Object other) =>
@@ -177,6 +101,59 @@ class TargetMuscle {
 ExerciseCategory? getCategory(String key) => exerciseCategories[key];
 TargetMuscle? getTargetMuscle(String key) => targetMuscles[key];
 
+/// Safe [Level] parser: unknown or missing names fall back to
+/// [Level.beginner] instead of throwing (see `Level.values.byName`).
+/// Logs in debug builds so corrupt records stay visible.
+Level safeParseLevel(String? name) {
+  if (name == null || name.isEmpty) return Level.beginner;
+  for (final l in Level.values) {
+    if (l.name == name) return l;
+  }
+  assert(() {
+    debugPrint('safeParseLevel: unknown level "$name", falling back to beginner');
+    return true;
+  }());
+  return Level.beginner;
+}
+
+/// Drops duplicate [ExerciseLevel] entries (keeps the first per [Level]).
+/// Duplicate tiers are a data-entry error; keeping both would make
+/// `getLevel` return whichever came first silently.
+List<ExerciseLevel> _dedupeLevels(List<ExerciseLevel> levels, String uuid) {
+  final seen = <Level>{};
+  final out = <ExerciseLevel>[];
+  for (final l in levels) {
+    if (seen.add(l.level)) {
+      out.add(l);
+    } else {
+      assert(() {
+        debugPrint('_dedupeLevels($uuid): duplicate ${l.level.name} dropped');
+        return true;
+      }());
+    }
+  }
+  return out;
+}
+
+/// Trims equipment text; empty becomes null so `!= null` checks stay honest.
+String? _normalizeEquipment(String? raw) {
+  final text = raw?.trim() ?? '';
+  return text.isEmpty ? null : text;
+}
+
+/// Canonical tag set: lowercase, trimmed, de-duplicated.
+/// The search field (`exercise_dialog.dart`) already lowercases the query,
+/// so stored tags must match that normalization to be findable.
+List<String> _normalizeTags(List<String> tags) {
+  final seen = <String>{};
+  final out = <String>[];
+  for (final t in tags) {
+    final norm = t.trim().toLowerCase();
+    if (norm.isNotEmpty && seen.add(norm)) out.add(norm);
+  }
+  return out;
+}
+
 class ExerciseLevel {
   final Level level;
   final int? sets;
@@ -194,11 +171,29 @@ class ExerciseLevel {
 
   factory ExerciseLevel.fromJson(Map<String, dynamic> json) {
     return ExerciseLevel(
-      level: Level.values.byName(json['level'] as String),
+      level: safeParseLevel(json['level'] as String?),
       sets: (json['sets'] as num?)?.toInt(),
       reps: (json['reps'] as num?)?.toInt(),
       durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
       weightKg: (json['weightKg'] as num?)?.toDouble(),
+    );
+  }
+
+  /// Single-source view of this level's dosage.
+  Prescription toPrescription() => Prescription(
+        sets: sets,
+        reps: reps,
+        durationSeconds: durationSeconds,
+        weightKg: weightKg,
+      );
+
+  factory ExerciseLevel.fromPrescription(Level level, Prescription p) {
+    return ExerciseLevel(
+      level: level,
+      sets: p.sets,
+      reps: p.reps,
+      durationSeconds: p.durationSeconds,
+      weightKg: p.weightKg,
     );
   }
 
@@ -230,6 +225,78 @@ class ExerciseLevel {
   String toString() =>
       'ExerciseLevel(level: $level, sets: $sets, reps: $reps, '
       'duration: ${durationSeconds}s, weight: ${weightKg}kg)';
+}
+
+/// A single dosage of an exercise: the four numbers that every
+/// prescription-carrying type in the app ([ExerciseLevel], [ExerciseRef],
+/// `PlanExerciseSlot`) embeds. Convert via `toPrescription()` and format
+/// via [display] so the rules live in exactly one place.
+class Prescription {
+  final int? sets;
+  final int? reps;
+  final int? durationSeconds;
+  final double? weightKg;
+
+  const Prescription({
+    this.sets,
+    this.reps,
+    this.durationSeconds,
+    this.weightKg,
+  });
+
+  /// Valid when exactly one effort axis is present: reps XOR duration.
+  /// `sets` is optional (rep-only entries like Cocoons exist in the catalog).
+  bool get isValid {
+    final hasReps = (reps ?? 0) > 0;
+    final hasDuration = (durationSeconds ?? 0) > 0;
+    return hasReps != hasDuration;
+  }
+
+  /// Canonical one-line display, e.g. "4 × 12 • 12 kg", "45s", "12 reps".
+  String display() {
+    final parts = <String>[];
+    if (sets != null && reps != null) {
+      parts.add('$sets × $reps');
+    } else if (sets != null) {
+      parts.add('$sets sets');
+    } else if (reps != null) {
+      parts.add('$reps reps');
+    } else if (durationSeconds != null) {
+      parts.add(_formatDuration(durationSeconds!));
+    }
+    if (weightKg != null) parts.add(_formatWeight(weightKg!));
+    return parts.join(' • ');
+  }
+
+  static String _formatDuration(int seconds) {
+    if (seconds < 60) return '${seconds}s';
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return s == 0 ? '${m}m' : '${m}m ${s}s';
+  }
+
+  static String _formatWeight(double kg) {
+    final text = kg % 1 == 0 ? kg.toInt().toString() : kg.toString();
+    return '$text kg';
+  }
+
+  factory Prescription.fromJson(Map<String, dynamic> json) {
+    return Prescription(
+      sets: (json['sets'] as num?)?.toInt(),
+      reps: (json['reps'] as num?)?.toInt(),
+      durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
+      weightKg: (json['weightKg'] as num?)?.toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (sets != null) 'sets': sets,
+      if (reps != null) 'reps': reps,
+      if (durationSeconds != null) 'durationSeconds': durationSeconds,
+      if (weightKg != null) 'weightKg': weightKg,
+    };
+  }
 }
 
 class Exercise {
@@ -279,30 +346,36 @@ class Exercise {
     return null;
   }
 
-  String getRecommendedDisplay() {
-    final lvl = getLevel(recommendedLevel);
-    if (lvl == null) return '';
-    final parts = <String>[];
-    if (lvl.sets != null && lvl.reps != null) {
-      parts.add('${lvl.sets} \u00d7 ${lvl.reps}');
-    } else if (lvl.reps != null) {
-      parts.add('${lvl.reps} reps');
-    } else if (lvl.durationSeconds != null) {
-      parts.add('${lvl.durationSeconds}s');
+  /// Resolves the level to display/log: requested → recommended → first.
+  /// Falls back loudly (debug log) instead of silently using the wrong tier.
+  ExerciseLevel? resolveLevel(Level level) {
+    final exact = getLevel(level);
+    if (exact != null) return exact;
+    final recommended = getLevel(recommendedLevel);
+    if (recommended != null) {
+      assert(() {
+        debugPrint(
+            'resolveLevel($name): $level missing, using recommended $recommendedLevel');
+        return true;
+      }());
+      return recommended;
     }
-    if (lvl.weightKg != null) parts.add('${lvl.weightKg}kg');
-    return parts.join(' \u2022 ');
+    if (levels.isNotEmpty) {
+      assert(() {
+        debugPrint('resolveLevel($name): no usable level, using first entry');
+        return true;
+      }());
+      return levels.first;
+    }
+    return null;
+  }
+
+  String getRecommendedDisplay() {
+    final lvl = resolveLevel(recommendedLevel);
+    return lvl?.toPrescription().display() ?? '';
   }
 
   factory Exercise.fromJson(Map<String, dynamic> json) {
-    Level parseLevel(String? name) {
-      if (name == null || name.isEmpty) return Level.beginner;
-      for (final l in Level.values) {
-        if (l.name == name) return l;
-      }
-      return Level.beginner;
-    }
-
     return Exercise(
       uuid: json['uuid'] as String,
       name: json['name'] as String,
@@ -313,15 +386,20 @@ class Exercise {
           'strength',
       targetMuscleKey: (json['targetMuscle'] as String?) ??
           (json['targetMuscleKey'] as String?) ??
-          'full',
-      recommendedLevel: parseLevel(json['recommendedLevel'] as String?),
-      levels: (json['levels'] as List<dynamic>? ?? const [])
-          .map((e) => ExerciseLevel.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      equipment: json['equipment'] as String?,
-      tags: (json['tags'] as List<dynamic>? ?? const [])
-          .map((t) => t.toString())
-          .toList(),
+          'fullbody',
+      recommendedLevel: safeParseLevel(json['recommendedLevel'] as String?),
+      levels: _dedupeLevels(
+        (json['levels'] as List<dynamic>? ?? const [])
+            .map((e) => ExerciseLevel.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        json['uuid'] as String? ?? '',
+      ),
+      equipment: _normalizeEquipment(json['equipment'] as String?),
+      tags: _normalizeTags(
+        (json['tags'] as List<dynamic>? ?? const [])
+            .map((t) => t.toString())
+            .toList(),
+      ),
       videoUrl: json['videoUrl'] as String?,
       imageUrl: json['imageUrl'] as String?,
       createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
@@ -339,8 +417,10 @@ class Exercise {
       'name': name,
       if (description != null) 'description': description,
       'isDefault': isDefault,
-      'category': categoryKey,
-      'targetMuscle': targetMuscleKey,
+      // Canonical keys; fromJson still accepts the legacy
+      // 'category' / 'targetMuscle' aliases for stored records.
+      'categoryKey': categoryKey,
+      'targetMuscleKey': targetMuscleKey,
       'recommendedLevel': recommendedLevel.name,
       'levels': levels.map((l) => l.toJson()).toList(),
       if (equipment != null) 'equipment': equipment,
@@ -451,7 +531,7 @@ class ExerciseRef {
     return ExerciseRef(
       exerciseId: json['exerciseId'] as String,
       chosenLevel: json['chosenLevel'] != null
-          ? Level.values.byName(json['chosenLevel'] as String)
+          ? safeParseLevel(json['chosenLevel'] as String?)
           : null,
       sets: (json['sets'] as num?)?.toInt(),
       reps: (json['reps'] as num?)?.toInt(),
@@ -474,6 +554,14 @@ class ExerciseRef {
       if (notes != null) 'notes': notes,
     };
   }
+
+  /// Single-source view of this ref's dosage.
+  Prescription toPrescription() => Prescription(
+        sets: sets,
+        reps: reps,
+        durationSeconds: durationSeconds,
+        weightKg: weightKg,
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -730,23 +818,10 @@ final Exercise sideLyingLegRaise = Exercise(
   createdAt: DateTime(2025, 1, 1),
 );
 
-final Exercise restExercise = Exercise(
-  uuid: 'ex-rest-001',
-  name: 'Rest Day',
-  description: 'Take the day off to recover. Your muscles repair and grow during rest.',
-  isDefault: true,
-  categoryKey: 'flexibility',
-  targetMuscleKey: 'fullbody',
-  recommendedLevel: Level.beginner,
-  levels: [
-    ExerciseLevel(level: Level.beginner, durationSeconds: 0),
-  ],
-  equipment: 'bodyweight',
-  tags: ['rest', 'recovery'],
-  createdAt: DateTime(2025, 1, 1),
-);
-
-final List<Exercise> defaultExercises = [
+/// Built-in exercise catalog shipped with the app.
+/// `restExercise` is intentionally excluded: rest is modelled as absence
+/// (see `PlanDay.isRest`), not as a fake exercise.
+final List<Exercise> defaultExercises = <Exercise>[
   plank,
   cocoons,
   pushUps,

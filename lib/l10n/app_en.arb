@@ -139,6 +139,7 @@
   "plan_saveError": "Could not save plan",
   "plan_weeksSection": "Weeks",
   "plan_addWeek": "Add week",
+  "plan_cloneWeek": "Clone week",
   "plan_removeWeek": "Remove last week",
   "plan_exerciseCount": "{count} exercises",
   "@plan_exerciseCount": {

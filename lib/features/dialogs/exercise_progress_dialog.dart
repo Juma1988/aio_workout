@@ -6,8 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/exercise_visuals.dart';
 import '../../core/widgets/directional_icon.dart';
 import '../../data/exercise.dart';
+import '../../data/exercise_localizer.dart';
+import '../../l10n/app_localizations.dart';
 import '../notifications/services/notification_service.dart';
 
 class ExerciseProgressDialog extends StatefulWidget {
@@ -206,9 +209,11 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     final cat = widget.exercise.category;
     final muscle = widget.exercise.targetMuscle;
-    final lvlColor = widget.exercise.recommendedLevel.color;
+    final lvlColor =
+        ExerciseVisuals.levelColor(widget.exercise.recommendedLevel);
 
     return PopScope(
       canPop: !_isResting && !_isHolding,
@@ -281,9 +286,18 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
                   spacing: 8,
                   alignment: WrapAlignment.center,
                   children: [
-                    _pill(context, widget.exercise.recommendedLevel.label, lvlColor),
-                    _pill(context, muscle.label, muscle.color),
-                    _pill(context, cat.label, cat.color),
+                    _pill(
+                        context,
+                        widget.exercise.recommendedLevel.localized(l10n),
+                        lvlColor),
+                    _pill(
+                        context,
+                        ExerciseLocalizer.muscleLabel(l10n, muscle.key),
+                        ExerciseVisuals.muscleColor(muscle.key)),
+                    _pill(
+                        context,
+                        ExerciseLocalizer.categoryLabel(l10n, cat.key),
+                        ExerciseVisuals.categoryColor(cat.key)),
                   ],
                 ),
                 const Spacer(),
@@ -779,10 +793,11 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
 
   void _showInfo(BuildContext context) {
     HapticFeedback.lightImpact();
+    final l10n = AppLocalizations.of(context);
     final ex = widget.exercise;
     final cat = ex.category;
     final muscle = ex.targetMuscle;
-    final lvlColor = ex.recommendedLevel.color;
+    final lvlColor = ExerciseVisuals.levelColor(ex.recommendedLevel);
 
     showModalBottomSheet(
       context: context,
@@ -829,16 +844,23 @@ class _ExerciseProgressDialogState extends State<ExerciseProgressDialog>
               spacing: 8,
               runSpacing: 4,
               children: [
-                _pill(ctx, ex.recommendedLevel.label, lvlColor),
-                _pill(ctx, muscle.label, muscle.color),
-                _pill(ctx, cat.label, cat.color),
+                _pill(ctx, ex.recommendedLevel.localized(l10n), lvlColor),
+                _pill(
+                    ctx,
+                    ExerciseLocalizer.muscleLabel(l10n, muscle.key),
+                    ExerciseVisuals.muscleColor(muscle.key)),
+                _pill(
+                    ctx,
+                    ExerciseLocalizer.categoryLabel(l10n, cat.key),
+                    ExerciseVisuals.categoryColor(cat.key)),
               ],
             ),
-            if (ex.equipment != null && ex.equipment!.isNotEmpty)
+            if (ExerciseLocalizer.equipmentLabel(l10n, ex.equipment).isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Equipment: ${ex.equipment}',
+                  l10n.dialog_equipment(
+                      ExerciseLocalizer.equipmentLabel(l10n, ex.equipment)),
                   style: TextStyle(color: AppTheme.textTertiary(context)),
                 ),
               ),

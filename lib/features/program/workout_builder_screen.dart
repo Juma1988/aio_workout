@@ -5,9 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/exercise_visuals.dart';
 import '../../data/exercise.dart';
 import '../../data/workout.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/workout_storage_service.dart';
+
 
 /// Full-screen workout builder (create or edit a custom workout).
 /// Shows name/focus fields, an exercise list with drag-to-reorder,
@@ -246,8 +249,8 @@ class _WorkoutBuilderScreenState extends State<WorkoutBuilderScreen> {
               runSpacing: 8,
               children: _focusOptions.map((opt) {
                 final selected = _focus == opt.$1;
-                final cat = exerciseCategories[opt.$1];
-                final color = cat?.color ?? AppTheme.textSecondary(context);
+                final color =
+                    ExerciseVisuals.categoryColor(opt.$1);
                 return ChoiceChip(
                   label: Text(opt.$2),
                   selected: selected,
@@ -265,11 +268,12 @@ class _WorkoutBuilderScreenState extends State<WorkoutBuilderScreen> {
               spacing: 8,
               children: _levelOptions.map((opt) {
                 final selected = _level == opt.$1;
-                final lvl = Level.values.byName(opt.$1);
+                final lvl = safeParseLevel(opt.$1);
                 return ChoiceChip(
                   label: Text(opt.$2),
                   selected: selected,
-                  selectedColor: lvl.color.withValues(alpha: 0.25),
+                  selectedColor:
+                      ExerciseVisuals.levelColor(lvl).withValues(alpha: 0.25),
                   onSelected: (_) => HapticFeedback.selectionClick().then((_) => setState(() => _level = opt.$1)),
                 );
               }).toList(),
@@ -489,7 +493,8 @@ class _ExerciseTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lvlColor = exercise.chosenLevel.color;
+    final l10n = AppLocalizations.of(context);
+    final lvlColor = ExerciseVisuals.levelColor(exercise.chosenLevel);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -568,7 +573,7 @@ class _ExerciseTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    exercise.chosenLevel.label,
+                    exercise.chosenLevel.localized(l10n),
                     style: TextStyle(color: lvlColor, fontSize: 10, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -713,8 +718,8 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
                     itemBuilder: (ctx, i) {
                       final ex = filtered[i];
                       final isSel = _selected.contains(ex.uuid);
-                      final cat = exerciseCategories[ex.categoryKey];
-                      final color = cat?.color ?? AppTheme.textSecondary(context);
+                      final color =
+                          ExerciseVisuals.categoryColor(ex.categoryKey);
                       final display = ex.getRecommendedDisplay();
 
                       return Padding(
@@ -755,7 +760,8 @@ class _ExercisePickerSheetState extends State<_ExercisePickerSheet> {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Icon(
-                                      exerciseCategoryIcons[ex.categoryKey] ?? Icons.fitness_center,
+                                      ExerciseVisuals.categoryIcon(
+                                          ex.categoryKey),
                                       size: 18,
                                       color: color,
                                     ),
@@ -896,9 +902,10 @@ class _EditExerciseSheetState extends State<_EditExerciseSheet> {
             children: [Level.beginner, Level.intermediate, Level.advanced].map((lvl) {
               final selected = _level == lvl;
               return ChoiceChip(
-                label: Text(lvl.label),
+                label: Text(lvl.localized(AppLocalizations.of(context))),
                 selected: selected,
-                selectedColor: lvl.color.withValues(alpha: 0.3),
+                selectedColor: ExerciseVisuals.levelColor(lvl)
+                    .withValues(alpha: 0.3),
                 onSelected: (_) => setState(() => _level = lvl),
               );
             }).toList(),

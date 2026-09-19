@@ -5,7 +5,7 @@ import '../../../core/theme/app_theme.dart' as theme;
 import '../../../l10n/app_localizations.dart';
 import '../../../features/profile/tips_dialog.dart' as tips;
 import '../../../features/profile/changelog_dialog.dart' as changelog;
-import '../../../features/profile/exersise_dialog.dart';
+import '../../../features/profile/exercise_dialog.dart';
 import '../../../features/notifications/notification_settings_screen.dart';
 import 'faq_item.dart';
 

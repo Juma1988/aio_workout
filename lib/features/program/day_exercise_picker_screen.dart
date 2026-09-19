@@ -5,9 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/exercise_visuals.dart';
 import '../../data/exercise.dart';
+import '../../data/exercise_localizer.dart';
 import '../../data/workout_plan.dart';
 import '../../l10n/app_localizations.dart';
+
 
 /// Multi-select exercise library for assigning exercises to a plan day.
 /// Returns `List<PlanExerciseSlot>` via [Navigator.pop] on Done.
@@ -130,7 +133,9 @@ class _DayExercisePickerScreenState extends State<DayExercisePickerScreen> {
           ),
         ],
       ),
-      body: _loading
+      body: Column(
+        children: [
+          Expanded(child: _loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
@@ -192,10 +197,10 @@ class _DayExercisePickerScreenState extends State<DayExercisePickerScreen> {
                           (cat) => Padding(
                             padding: const EdgeInsets.only(right: 6),
                             child: _filterChip(
-                              cat.label,
+                              ExerciseLocalizer.categoryLabel(l10n, cat.key),
                               _filter == cat.key,
                               () => setState(() => _filter = cat.key),
-                              color: cat.color,
+                              color: ExerciseVisuals.categoryColor(cat.key),
                             ),
                           ),
                         ),
@@ -219,9 +224,8 @@ class _DayExercisePickerScreenState extends State<DayExercisePickerScreen> {
                           itemBuilder: (ctx, i) {
                             final ex = filtered[i];
                             final isSel = selected.contains(ex.uuid);
-                            final cat = exerciseCategories[ex.categoryKey];
-                            final color =
-                                cat?.color ?? AppTheme.textSecondary(context);
+                            final color = ExerciseVisuals.categoryColor(
+                                    ex.categoryKey);
                             final display = ex.getRecommendedDisplay();
                             final isCustom = !ex.isDefault;
                             final orderIndex = isSel
@@ -274,9 +278,8 @@ class _DayExercisePickerScreenState extends State<DayExercisePickerScreen> {
                                                   ),
                                                 )
                                               : Icon(
-                                                  exerciseCategoryIcons[
-                                                          ex.categoryKey] ??
-                                                      Icons.fitness_center,
+                                                  ExerciseVisuals.categoryIcon(
+                                                      ex.categoryKey),
                                                   size: 18,
                                                   color: color,
                                                 ),
@@ -366,7 +369,9 @@ class _DayExercisePickerScreenState extends State<DayExercisePickerScreen> {
                         ),
                 ),
               ],
-            ),
+            )),
+        ],
+      ),
     );
   }
 

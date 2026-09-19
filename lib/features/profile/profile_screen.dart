@@ -22,7 +22,7 @@ import '../dialogs/edit_profile_dialog.dart';
 import '../program/plan_hub_screen.dart';
 import '../notifications/notification_settings_screen.dart';
 import '../notifications/services/notification_repository.dart';
-import 'exersise_dialog.dart';
+import 'exercise_dialog.dart';
 import 'changelog_dialog.dart';
 import 'tips_dialog.dart';
 import '../help_feedback/help_feedback_screen.dart';

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/exercise_visuals.dart';
 import '../../../data/exercise.dart';
+import '../../../data/exercise_localizer.dart';
+import '../../../l10n/app_localizations.dart';
 
 class ExerciseInfoSheet extends StatelessWidget {
   final Exercise exercise;
@@ -11,9 +14,12 @@ class ExerciseInfoSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final cat = exercise.category;
     final muscle = exercise.targetMuscle;
-    final lvlColor = exercise.recommendedLevel.color;
+    final lvlColor = ExerciseVisuals.levelColor(exercise.recommendedLevel);
+    final equipmentLabel =
+        ExerciseLocalizer.equipmentLabel(l10n, exercise.equipment);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
@@ -55,16 +61,22 @@ class ExerciseInfoSheet extends StatelessWidget {
             spacing: 8,
             runSpacing: 4,
             children: [
-              _pill(context, exercise.recommendedLevel.label, lvlColor),
-              _pill(context, muscle.label, muscle.color),
-              _pill(context, cat.label, cat.color),
+              _pill(context, exercise.recommendedLevel.localized(l10n), lvlColor),
+              _pill(
+                  context,
+                  ExerciseLocalizer.muscleLabel(l10n, muscle.key),
+                  ExerciseVisuals.muscleColor(muscle.key)),
+              _pill(
+                  context,
+                  ExerciseLocalizer.categoryLabel(l10n, cat.key),
+                  ExerciseVisuals.categoryColor(cat.key)),
             ],
           ),
-          if (exercise.equipment != null && exercise.equipment!.isNotEmpty)
+          if (equipmentLabel.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                'Equipment: ${exercise.equipment}',
+                l10n.dialog_equipment(equipmentLabel),
                 style: TextStyle(color: AppTheme.textTertiary(context)),
               ),
             ),

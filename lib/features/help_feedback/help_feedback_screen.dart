@@ -43,30 +43,33 @@ class _HelpFeedbackScreenState extends State<HelpFeedbackScreen>
           indicatorSize: TabBarIndicatorSize.label,
           labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
-          tabs: [
-            Tab(
-              icon: const Icon(Icons.help_outline, size: 20),
-              text: l10n.helpFeedback_helpTab,
-            ),
-            Tab(
-              icon: const Icon(Icons.feedback_outlined, size: 20),
-              text: l10n.helpFeedback_feedbackTab,
-            ),
-          ],
-        ),
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: TabBarView(
-            controller: _tabController,
-            children: const [
-              HelpTab(),
-              FeedbackForm(),
-            ],
-          ),
-        ),
-      ),
-    );
+           tabs: [
+             Tab(
+               icon: const Icon(Icons.help_outline, size: 20),
+               text: l10n.helpFeedback_helpTab,
+             ),
+             Tab(
+               icon: const Icon(Icons.feedback_outlined, size: 20),
+               text: l10n.helpFeedback_feedbackTab,
+             ),
+           ],
+         ),
+       ),
+       body: Column(
+         children: [
+            Expanded(
+             child: Center(
+               child: ConstrainedBox(
+                 constraints: const BoxConstraints(maxWidth: 600),
+                 child: TabBarView(
+                   controller: _tabController,
+                   children: const [HelpTab(), FeedbackForm()],
+                 ),
+               ),
+             ),
+           ),
+         ],
+       ),
+     );
   }
 }

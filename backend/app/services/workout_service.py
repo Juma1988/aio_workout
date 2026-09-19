@@ -77,51 +77,61 @@ async def get_workout_history(
     limit: int = 50,
     offset: int = 0,
 ) -> WorkoutHistory:
-    # Fetch sessions
+    # Fetch sessions with exercises in a single query using LEFT JOIN
     result = await db.execute(
         text("""
-            SELECT id, session_date, week_number, day_number, focus,
-                   duration_seconds, steps_during, hydration_liters, notes, created_at
-            FROM workout_sessions
-            WHERE user_id = :uid AND deleted_at IS NULL
-            ORDER BY session_date DESC
+            SELECT 
+                s.id as session_id, s.session_date, s.week_number, s.day_number, 
+                s.focus, s.duration_seconds, s.steps_during, s.hydration_liters, 
+                s.notes, s.created_at,
+                e.id as exercise_id, e.exercise_uuid, e.exercise_name, 
+                e.sets_completed, e.reps_completed, e.duration_seconds as ex_duration, 
+                e.weight_kg, e.notes as ex_notes
+            FROM workout_sessions s
+            LEFT JOIN completed_exercises e ON s.id = e.session_id
+            WHERE s.user_id = :uid AND s.deleted_at IS NULL
+            ORDER BY s.session_date DESC, s.id, e.id
             LIMIT :limit OFFSET :offset
         """),
         {"uid": str(user_id), "limit": limit, "offset": offset},
     )
+    
+    # Group results by session
+    session_map = {}
+    for row in result.fetchall():
+        session_id = row.session_id
+        if session_id not in session_map:
+            session_map[session_id] = {
+                "session": row,
+                "exercises": []
+            }
+        if row.exercise_id is not None:
+            session_map[session_id]["exercises"].append(
+                CompletedExerciseResponse(
+                    id=row.exercise_id,
+                    exercise_uuid=row.exercise_uuid,
+                    exercise_name=row.exercise_name,
+                    sets_completed=row.sets_completed,
+                    reps_completed=row.reps_completed,
+                    duration_seconds=row.ex_duration,
+                    weight_kg=float(row.weight_kg) if row.weight_kg else None,
+                    notes=row.ex_notes or "",
+                )
+            )
+    
+    # Convert to list and calculate totals
     sessions = []
     total_sets = 0
     total_duration = 0
-    for row in result.fetchall():
-        # Fetch exercises for this session
-        ex_result = await db.execute(
-            text("""
-                SELECT id, exercise_uuid, exercise_name, sets_completed,
-                       reps_completed, duration_seconds, weight_kg, notes
-                FROM completed_exercises
-                WHERE session_id = :sid
-            """),
-            {"sid": str(row.id)},
-        )
-        exercises = [
-            CompletedExerciseResponse(
-                id=er.id,
-                exercise_uuid=er.exercise_uuid,
-                exercise_name=er.exercise_name,
-                sets_completed=er.sets_completed,
-                reps_completed=er.reps_completed,
-                duration_seconds=er.duration_seconds,
-                weight_kg=float(er.weight_kg) if er.weight_kg else None,
-                notes=er.notes or "",
-            )
-            for er in ex_result.fetchall()
-        ]
+    for session_id, data in session_map.items():
+        row = data["session"]
+        exercises = data["exercises"]
         session_sets = sum(e.sets_completed for e in exercises)
         total_sets += session_sets
         total_duration += row.duration_seconds
-
+        
         sessions.append(WorkoutSessionResponse(
-            id=row.id,
+            id=row.session_id,
             session_date=row.session_date,
             week_number=row.week_number,
             day_number=row.day_number,

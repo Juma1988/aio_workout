@@ -117,37 +117,13 @@ async def get_history(
     pagination: Pagination,
     db: AsyncSession = Depends(get_db),
 ):
-    from sqlalchemy import text
-
     offset = int(pagination.cursor) if pagination.cursor else 0
-    result = await db.execute(
-        text("""
-            SELECT date, total_steps, total_distance, total_calories,
-                   active_minutes, peak_step_hour, sources
-            FROM daily_step_summaries
-            WHERE user_id = :uid
-            ORDER BY date DESC
-            LIMIT :limit OFFSET :offset
-        """),
-        {"uid": str(user.id), "limit": pagination.limit + 1, "offset": offset},
+    items, has_more = await step_service.get_step_history(
+        db, user.id, pagination.limit, offset
     )
-    rows = result.fetchall()
-    has_more = len(rows) > pagination.limit
-    items = rows[: pagination.limit]
-
+    
     return CursorPage(
-        items=[
-            DailyStepSummaryResponse(
-                date=r.date,
-                total_steps=r.total_steps,
-                total_distance=float(r.total_distance),
-                total_calories=float(r.total_calories),
-                active_minutes=r.active_minutes,
-                peak_step_hour=r.peak_step_hour,
-                sources=r.sources or [],
-            )
-            for r in items
-        ],
+        items=items,
         next_cursor=str(offset + pagination.limit) if has_more else None,
         has_more=has_more,
     )

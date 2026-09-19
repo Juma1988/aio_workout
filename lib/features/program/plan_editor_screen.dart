@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/directional_icon.dart';
 import '../../data/workout_plan.dart';
 import '../../l10n/app_localizations.dart';
+
 import '../../services/workout_storage_service.dart';
 import 'day_exercise_picker_screen.dart';
 
@@ -119,6 +120,65 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
       final next = _weeks.length + 1;
       _weeks = [..._weeks, PlanWeek.empty(next)];
       _expandedWeek = next;
+    });
+  }
+
+  Future<void> _cloneWeek() async {
+    if (_weeks.isEmpty) return;
+    final sourceWeek = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) {
+        var selected = _weeks.first.weekNumber;
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Clone a week'),
+            content: DropdownButtonFormField<int>(
+              initialValue: selected,
+              decoration: const InputDecoration(labelText: 'Week to clone'),
+              items: _weeks
+                  .map(
+                    (week) => DropdownMenuItem<int>(
+                      value: week.weekNumber,
+                      child: Text('Week ${week.weekNumber}'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) setDialogState(() => selected = value);
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(selected),
+                child: const Text('Clone week'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (sourceWeek == null || !mounted) return;
+    final source = _weeks.firstWhere((week) => week.weekNumber == sourceWeek);
+    final nextNumber = _weeks.length + 1;
+    final cloned = PlanWeek(
+      weekNumber: nextNumber,
+      days: source.days
+          .map(
+            (day) => PlanDay(
+              dayNumber: day.dayNumber,
+              exercises: List<PlanExerciseSlot>.from(day.exercises),
+            ),
+          )
+          .toList(),
+    );
+    HapticFeedback.lightImpact();
+    setState(() {
+      _weeks = [..._weeks, cloned];
+      _expandedWeek = nextNumber;
     });
   }
 
@@ -318,7 +378,34 @@ class _PlanEditorScreenState extends State<PlanEditorScreen> {
                 ),
               );
             }),
-            _AddWeekCard(onTap: _addWeek, label: l10n.plan_addWeek),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: _AddWeekCard(
+                    onTap: _addWeek,
+                    label: l10n.plan_addWeek,
+                    filled: true,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      bottomLeft: Radius.circular(16),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _AddWeekCard(
+                    onTap: _cloneWeek,
+                    label: l10n.plan_cloneWeek,
+                    icon: Icons.content_copy_outlined,
+                    enabled: _weeks.isNotEmpty,
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -545,50 +632,125 @@ class _DayRow extends StatelessWidget {
   }
 }
 
-class _AddWeekCard extends StatelessWidget {
+class _AddWeekCard extends StatefulWidget {
   final VoidCallback onTap;
   final String label;
+  final IconData icon;
+  final BorderRadius borderRadius;
+  final bool filled;
+  final bool enabled;
 
-  const _AddWeekCard({required this.onTap, required this.label});
+  const _AddWeekCard({
+    required this.onTap,
+    required this.label,
+    this.icon = Icons.add_circle_outline,
+    this.borderRadius = const BorderRadius.all(Radius.circular(16)),
+    this.filled = false,
+    this.enabled = true,
+  });
+
+  @override
+  State<_AddWeekCard> createState() => _AddWeekCardState();
+}
+
+class _AddWeekCardState extends State<_AddWeekCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 100),
+    );
+    _scale = Tween<double>(begin: 1.0, end: 0.96).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 72,
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: Theme.of(context)
-                .colorScheme
-                .primary
-                .withValues(alpha: 0.25),
-            width: 1.5,
-          ),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Center(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.add_circle_outline,
-                  size: 28,
-                  color: AppTheme.hydrationBlue,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: AppTheme.hydrationBlue,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+    final cs = Theme.of(context).colorScheme;
+    final primary = AppTheme.hydrationBlue;
+
+    final Color bgColor;
+    final Color fgColor;
+    final Color borderColor;
+
+    if (!widget.enabled) {
+      bgColor = cs.surfaceContainerHighest;
+      fgColor = cs.onSurface.withValues(alpha: 0.38);
+      borderColor = cs.outline.withValues(alpha: 0.12);
+    } else if (widget.filled) {
+      bgColor = primary;
+      fgColor = Colors.white;
+      borderColor = primary;
+    } else {
+      bgColor = cs.surface;
+      fgColor = primary;
+      borderColor = primary.withValues(alpha: 0.25);
+    }
+
+    return Semantics(
+      button: true,
+      enabled: widget.enabled,
+      label: widget.label,
+      hint: widget.enabled ? 'Double tap to activate' : 'Disabled',
+      child: GestureDetector(
+        onTapDown: widget.enabled ? (_) => _controller.forward() : null,
+        onTapUp: widget.enabled ? (_) => _controller.reverse() : null,
+        onTapCancel: widget.enabled ? () => _controller.reverse() : null,
+        child: AnimatedScale(
+          scale: _scale.value,
+          duration: const Duration(milliseconds: 100),
+          child: SizedBox(
+            height: 64,
+            child: Card(
+              margin: EdgeInsets.zero,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: widget.borderRadius,
+                side: BorderSide(color: borderColor, width: 1.5),
+              ),
+              color: bgColor,
+              child: InkWell(
+                onTap: widget.enabled ? widget.onTap : null,
+                borderRadius: widget.borderRadius,
+                child: Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        widget.icon,
+                        size: 22,
+                        color: fgColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          widget.label,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: fgColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ),

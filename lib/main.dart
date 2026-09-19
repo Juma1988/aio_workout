@@ -18,29 +18,79 @@ import 'services/workout_storage_service.dart';
 
 bool _firebaseReady = false;
 
+void _configureErrorHandlers() {
+  FlutterError.onError = (details) {
+    if (_firebaseReady) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+    } else {
+      FlutterError.presentError(details);
+    }
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    if (_firebaseReady) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    }
+    return true;
+  };
+
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    if (_firebaseReady) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+    }
+    return Material(
+      child: Container(
+        color: AppTheme.darkBackground,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  color: Colors.redAccent,
+                  size: 48,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Something went wrong',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  details.exceptionAsString(),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  };
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _configureErrorHandlers();
 
   try {
     await Firebase.initializeApp();
     _firebaseReady = true;
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-    PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      return true;
-    };
   } catch (e, s) {
-    // Web/desktop often lack FirebaseOptions — app still runs without Crashlytics.
     debugPrint('Firebase init skipped: $e\n$s');
-    FlutterError.onError = (details) {
-      FlutterError.presentError(details);
-    };
   }
 
   final localeProvider = LocaleProvider();
   await localeProvider.loadSavedLocale();
 
-  await _initNotifications(localeProvider);
+  await _initNotifications();
 
   runApp(
     ChangeNotifierProvider<LocaleProvider>.value(
@@ -50,7 +100,7 @@ Future<void> main() async {
   );
 }
 
-Future<void> _initNotifications(LocaleProvider localeProvider) async {
+Future<void> _initNotifications() async {
   try {
     final service = NotificationService();
     await service.initialize();
@@ -142,9 +192,7 @@ class _MainAppState extends State<MainApp> {
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
             themeMode: _themeMode,
-            home: SplashScreen(
-              onThemeToggle: _toggleTheme,
-            ),
+            home: SplashScreen(onThemeToggle: _toggleTheme),
           );
         },
       ),

@@ -73,9 +73,14 @@ build/
 
 # Environment variables
 backend/.env
+opencode.json
 
 # Android signing
 android/app/signing/
 android/key.properties
+**/key.properties
 
 testsprite_tests\tmp\config.json
+
+# Backup files
+*.bak

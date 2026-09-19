@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/exercise_visuals.dart';
 import '../../core/widgets/directional_icon.dart';
 import '../../data/exercise.dart';
 import '../../data/exercise_localizer.dart';
@@ -29,7 +30,7 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
   List<Exercise> _customExercises = [];
   bool _isLoading = true;
   String? _activeFilter;
-  final _selectedLevels = <String, _LevelSelection>{};
+  final _selectedLevels = <String, ExerciseLevel>{};
   Map<String, int> _completionCounts = {};
 
   /// When categories are scrolled, All/Custom collapse to icon-only.
@@ -552,7 +553,8 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
 
   void _showDetail(Exercise ex) async {
     HapticFeedback.lightImpact();
-    final result = await showModalBottomSheet<_LevelSelection>(
+    final l10n = AppLocalizations.of(context);
+    final result = await showModalBottomSheet<ExerciseLevel>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -575,8 +577,8 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
         SnackBar(
           content: Text(
             result.level == Level.custom
-                ? '${ex.name}: custom values applied'
-                : '${ex.name}: ${result.level.label} selected',
+                ? '${ex.name}: ${ExerciseLocalizer.levelLabel(l10n, Level.custom.name)} applied'
+                : '${ex.name}: ${result.level.localized(l10n)} selected',
           ),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
@@ -783,10 +785,10 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
                                                   cat.key,
                                               onTap: () =>
                                                   _setFilter(cat.key),
-                                              color: cat.color,
-                                              icon: exerciseCategoryIcons[
-                                                      cat.key] ??
-                                                  Icons.fitness_center,
+                                              color: ExerciseVisuals
+                                                  .categoryColor(cat.key),
+                                              icon: ExerciseVisuals
+                                                  .categoryIcon(cat.key),
                                             ),
                                           );
                                         }),
@@ -970,7 +972,7 @@ class _ExerciseDialogState extends State<ExerciseDialog> {
 /// pills, equipment, usage stats, and colored border.
 class _ExerciseCard extends StatelessWidget {
   final Exercise exercise;
-  final _LevelSelection? activeSelection;
+  final ExerciseLevel? activeSelection;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final int timesCompleted;
@@ -988,27 +990,19 @@ class _ExerciseCard extends StatelessWidget {
   String get _activeDisplay {
     final sel = activeSelection;
     if (sel == null) return exercise.getRecommendedDisplay();
-    final parts = <String>[];
-    if (sel.sets != null && sel.reps != null) {
-      parts.add('${sel.sets} \u00d7 ${sel.reps}');
-    } else if (sel.reps != null) {
-      parts.add('${sel.reps} reps');
-    } else if (sel.durationSeconds != null) {
-      parts.add('${sel.durationSeconds}s');
-    }
-    if (sel.weightKg != null) parts.add('${sel.weightKg}kg');
-    return parts.join(' \u2022 ');
+    return sel.toPrescription().display();
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final cat = exercise.category;
     final muscle = exercise.targetMuscle;
     final isCustom = !exercise.isDefault;
-    final icon = exerciseCategoryIcons[exercise.categoryKey] ?? Icons.fitness_center;
-    final catColor = cat.color;
-    final muscleColor = muscle.color;
-    final levelColor = _activeLevel.color;
+    final icon = ExerciseVisuals.categoryIcon(exercise.categoryKey);
+    final catColor = ExerciseVisuals.categoryColor(cat.key);
+    final muscleColor = ExerciseVisuals.muscleColor(muscle.key);
+    final levelColor = ExerciseVisuals.levelColor(_activeLevel);
     final display = _activeDisplay;
     final desc = exercise.description ?? exercise.name;
 
@@ -1131,18 +1125,32 @@ class _ExerciseCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 4,
                       children: [
-                        _buildPill(context, label: _activeLevel.label, color: levelColor),
-                        _buildPill(context, label: muscle.label, color: muscleColor),
-                        _buildPill(context, label: cat.label, color: catColor),
+                        _buildPill(
+                            context,
+                            label: _activeLevel.localized(l10n),
+                            color: levelColor),
+                        _buildPill(
+                            context,
+                            label: ExerciseLocalizer.muscleLabel(
+                                l10n, muscle.key),
+                            color: muscleColor),
+                        _buildPill(
+                            context,
+                            label:
+                                ExerciseLocalizer.categoryLabel(l10n, cat.key),
+                            color: catColor),
                       ],
                     ),
 
                     // Equipment
-                    if (exercise.equipment != null && exercise.equipment!.isNotEmpty)
+                    if (ExerciseLocalizer.equipmentLabel(
+                            l10n, exercise.equipment)
+                        .isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          exercise.equipment!,
+                          ExerciseLocalizer.equipmentLabel(
+                              l10n, exercise.equipment),
                           style: TextStyle(
                             color: AppTheme.textTertiary(context),
                             fontSize: 12,
@@ -1186,24 +1194,7 @@ class _ExerciseCard extends StatelessWidget {
 
 /// Detail dialog shown when tapping a card.
 /// Includes "level selections" (ChoiceChips) that update the displayed values.
-class _LevelSelection {
-  final Level level;
-  final int? sets;
-  final int? reps;
-  final int? durationSeconds;
-  final double? weightKg;
-
-  const _LevelSelection({
-    required this.level,
-    this.sets,
-    this.reps,
-    this.durationSeconds,
-    this.weightKg,
-  });
-}
-
-/// Detail bottom sheet shown when tapping a card.
-/// Includes level selections (ChoiceChips) that update the displayed values.
+/// Selections are plain [ExerciseLevel] values (see `Prescription`).
 class _ExerciseDetailSheet extends StatefulWidget {
   final Exercise exercise;
   final VoidCallback? onEdit;
@@ -1256,23 +1247,34 @@ class _ExerciseDetailSheetState extends State<_ExerciseDetailSheet> {
       final dur = int.tryParse(_durCtrl.text);
       final weight = double.tryParse(_weightCtrl.text);
       Navigator.of(context).pop(
-        _LevelSelection(level: Level.custom, sets: sets, reps: reps, durationSeconds: dur, weightKg: weight),
+        ExerciseLevel(
+            level: Level.custom,
+            sets: sets,
+            reps: reps,
+            durationSeconds: dur,
+            weightKg: weight),
       );
     } else {
       final lvl = widget.exercise.getLevel(_selectedLevel);
       Navigator.of(context).pop(
-        _LevelSelection(level: _selectedLevel, sets: lvl?.sets, reps: lvl?.reps, durationSeconds: lvl?.durationSeconds, weightKg: lvl?.weightKg),
+        ExerciseLevel(
+            level: _selectedLevel,
+            sets: lvl?.sets,
+            reps: lvl?.reps,
+            durationSeconds: lvl?.durationSeconds,
+            weightKg: lvl?.weightKg),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final ex = widget.exercise;
     final cat = ex.category;
     final muscle = ex.targetMuscle;
     final currentLevel = !_isCustom
-        ? (ex.getLevel(_selectedLevel) ?? (ex.levels.isNotEmpty ? ex.levels.first : null))
+        ? ex.resolveLevel(_selectedLevel)
         : null;
 
     return Padding(
@@ -1298,15 +1300,24 @@ class _ExerciseDetailSheetState extends State<_ExerciseDetailSheet> {
 
           // Category + Muscle badges
           Wrap(spacing: 8, children: [
-            _DetailBadge(label: cat.label, color: cat.color),
-            _DetailBadge(label: muscle.label, color: muscle.color),
+            _DetailBadge(
+                label: ExerciseLocalizer.categoryLabel(l10n, cat.key),
+                color: ExerciseVisuals.categoryColor(cat.key)),
+            _DetailBadge(
+                label: ExerciseLocalizer.muscleLabel(l10n, muscle.key),
+                color: ExerciseVisuals.muscleColor(muscle.key)),
           ]),
           const SizedBox(height: 12),
 
           // Level section
           Text(
-            _isCustom ? 'Custom level' : 'Level: ${_selectedLevel.label}',
-            style: TextStyle(color: _isCustom ? Level.custom.color : _selectedLevel.color, fontWeight: FontWeight.w600),
+            _isCustom
+                ? ExerciseLocalizer.levelLabel(l10n, Level.custom.name)
+                : ExerciseLocalizer.levelLabel(l10n, _selectedLevel.name),
+            style: TextStyle(
+                color: ExerciseVisuals.levelColor(
+                    _isCustom ? Level.custom : _selectedLevel),
+                fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
 
@@ -1320,9 +1331,10 @@ class _ExerciseDetailSheetState extends State<_ExerciseDetailSheet> {
                   return Padding(
                     padding: const EdgeInsetsDirectional.only(end: 8),
                     child: ChoiceChip(
-                      label: Text(lvl.level.label),
+                      label: Text(lvl.level.localized(l10n)),
                       selected: isSel,
-                      selectedColor: lvl.level.color.withValues(alpha: 0.3),
+                      selectedColor: ExerciseVisuals.levelColor(lvl.level)
+                          .withValues(alpha: 0.3),
                       onSelected: (selected) {
                         if (selected) setState(() { _selectedLevel = lvl.level; _isCustom = false; });
                       },
@@ -1330,9 +1342,10 @@ class _ExerciseDetailSheetState extends State<_ExerciseDetailSheet> {
                   );
                 }),
                 ChoiceChip(
-                  label: const Text('Customize'),
+                  label: Text(ExerciseLocalizer.levelLabel(l10n, 'custom')),
                   selected: _isCustom,
-                  selectedColor: Level.custom.color.withValues(alpha: 0.3),
+                  selectedColor: ExerciseVisuals.levelColor(Level.custom)
+                      .withValues(alpha: 0.3),
                   onSelected: (selected) { if (selected) _selectCustom(); },
                 ),
               ],
@@ -1349,10 +1362,13 @@ class _ExerciseDetailSheetState extends State<_ExerciseDetailSheet> {
             _buildCustomFields(context),
 
           // Equipment + tags
-          if (ex.equipment != null && ex.equipment!.isNotEmpty)
+          if (ExerciseLocalizer.equipmentLabel(l10n, ex.equipment).isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: Text('Equipment: ${ex.equipment}', style: TextStyle(color: AppTheme.textTertiary(context))),
+              child: Text(
+                  l10n.dialog_equipment(
+                      ExerciseLocalizer.equipmentLabel(l10n, ex.equipment)),
+                  style: TextStyle(color: AppTheme.textTertiary(context))),
             ),
           if (ex.tags.isNotEmpty)
             Padding(
@@ -1604,7 +1620,7 @@ class _AddExerciseSheetState extends State<_AddExerciseSheet> {
 
     final tags = _tagsCtrl.text
         .split(',')
-        .map((t) => t.trim())
+        .map((t) => t.trim().toLowerCase())
         .where((t) => t.isNotEmpty)
         .toList();
 
@@ -1712,9 +1728,10 @@ class _AddExerciseSheetState extends State<_AddExerciseSheet> {
                         .map((lvl) {
                           final selected = _recommendedLevel == lvl;
                           return ChoiceChip(
-                            label: Text(lvl.label),
+                            label: Text(lvl.localized(AppLocalizations.of(context))),
                             selected: selected,
-                            selectedColor: lvl.color.withValues(alpha: 0.3),
+                            selectedColor: ExerciseVisuals.levelColor(lvl)
+                                .withValues(alpha: 0.3),
                             onSelected: (_) => setState(() => _recommendedLevel = lvl),
                           );
                         })

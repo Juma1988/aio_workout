@@ -5,14 +5,9 @@ import '../data/weight_entry.dart';
 import '../data/workout.dart';
 import '../data/workout_log.dart';
 import '../data/workout_plan.dart';
+import '../core/utils/date_utils.dart' show dateKey;
 
-/// Whether [seedMockData] should generate fake records for development/testing.
-/// Always false in release builds — users never see fabricated data.
-bool _debugAllowMockData = false;
-
-/// Returns the local date as a YYYY-MM-DD string, avoiding timezone ambiguity.
-String dateKey(DateTime date) =>
-    '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+export '../core/utils/date_utils.dart' show dateKey;
 
 /// Thin wrapper around SharedPreferences with error-tolerant defaults.
 ///
@@ -380,21 +375,18 @@ class WorkoutStorageService {
   }
 
   Future<void> seedMockData() async {
-    if (kReleaseMode || !_debugAllowMockData) return;
+    if (kReleaseMode || !kDebugMode) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();
 
       // ── Workout sessions (8 sessions over past ~20 days) ──
       const exercisePool = [
-        ('ex-plank-001', 'Plank'),
         ('ex-pushups-001', 'Push Ups'),
         ('ex-squats-001', 'Bodyweight Squats'),
         ('ex-overheadpress-001', 'Overhead Press'),
         ('ex-jumpingjacks-001', 'Jumping Jacks'),
-        ('ex-deadbug-001', 'Dead Bug'),
         ('ex-bicepcurls-001', 'Bicep Curls'),
-        ('ex-highkneemarch-001', 'Gentle High-Knee March'),
         ('ex-glutebridge-001', 'Glute Bridge'),
         ('ex-birddog-001', 'Bird Dog'),
         ('ex-cocoons-001', 'Cocoons'),

@@ -10,7 +10,8 @@ import '../../core/theme/app_theme.dart';
 import '../../data/weight_entry.dart';
 import '../../data/workout_log.dart';
 import '../../l10n/app_localizations.dart';
-import '../../services/workout_storage_service.dart' show WorkoutStorageService, dateKey;
+import '../../services/workout_storage_service.dart'
+    show WorkoutStorageService, dateKey;
 import '../../services/hydration_storage.dart';
 import '../../services/step_counter_service.dart';
 import '../../services/step_history_storage.dart';
@@ -20,7 +21,9 @@ import '../home/home_screen.dart';
 import '../history/history_screen.dart';
 import '../profile/home_settings_dialog.dart';
 import '../profile/profile_screen.dart';
+
 import '../notifications/services/notification_service.dart';
+import 'widgets/workout_complete_sheet.dart';
 
 class MainShell extends StatefulWidget {
   final VoidCallback? onThemeToggle;
@@ -141,24 +144,33 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     final exercises = getTodayExercises(_progress.currentDay);
     final completedExercises = exercises
         .where((e) => uuids.contains(e.uuid))
-        .map((e) {
-      final lvl = e.getLevel(e.recommendedLevel);
-      return CompletedExercise(
-        exerciseUuid: e.uuid,
-        exerciseName: e.name,
-        setsCompleted: lvl?.sets ?? 1,
-        repsCompleted: lvl?.reps,
-        durationSeconds: lvl?.durationSeconds,
-      );
-    }).toList();
+        .expand((e) {
+          // Never fabricate a set count: an exercise with no levels
+          // at all is skipped loudly instead of being logged as "1 set".
+          final lvl = e.resolveLevel(e.recommendedLevel);
+          if (lvl == null) {
+            debugPrint(
+                'Skipping partial-workout log for ${e.uuid}: no levels defined');
+            return <CompletedExercise>[];
+          }
+          return [
+            CompletedExercise(
+              exerciseUuid: e.uuid,
+              exerciseName: e.name,
+              setsCompleted: lvl.sets ?? 1,
+              repsCompleted: lvl.reps,
+              durationSeconds: lvl.durationSeconds,
+            )
+          ];
+        })
+        .toList();
 
     if (completedExercises.isEmpty) return;
 
     // Date the session as yesterday so it doesn't count as today's completed
     // workout (which would hide the new day's exercise list).
     final sessionDate = DateTime.now().subtract(const Duration(days: 1));
-    final focus = getFocusForDay(
-        _progress.currentWeek, _progress.currentDay);
+    final focus = getFocusForDay(_progress.currentWeek, _progress.currentDay);
 
     final session = WorkoutSession(
       uuid: 'ws-partial-${DateTime.now().millisecondsSinceEpoch}',
@@ -228,13 +240,13 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     final proceed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(Icons.directions_run,
-                color: Theme.of(context).colorScheme.primary),
+            Icon(
+              Icons.directions_run,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(width: 10),
             Text(l10n.home_steps),
           ],
@@ -390,9 +402,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (isRestDay(progress.currentDay)) return;
     final sessions = await _storageService.loadSessions();
     final todayStr = dateKey(DateTime.now());
-    final hasTodaySession = sessions.any(
-      (s) => dateKey(s.date) == todayStr,
-    );
+    final hasTodaySession = sessions.any((s) => dateKey(s.date) == todayStr);
     if (!hasTodaySession) {
       final notifService = NotificationService();
       if (mounted) {
@@ -492,9 +502,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   Future<void> _onWeightLogged(WeightEntry entry) async {
     setState(() {
       final key = dateKey(entry.date);
-      final idx = _weightEntries.indexWhere(
-        (e) => dateKey(e.date) == key,
-      );
+      final idx = _weightEntries.indexWhere((e) => dateKey(e.date) == key);
       if (idx >= 0) {
         _weightEntries[idx] = entry;
       } else {
@@ -522,7 +530,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   Future<void> _onWorkoutComplete(
-      int durationSeconds, DateTime startTime) async {
+    int durationSeconds,
+    DateTime startTime,
+  ) async {
     // Check if day changed mid-workout (e.g. workout started before midnight)
     final today = dateKey(DateTime.now());
     if (today != _lastDateKey) {
@@ -532,21 +542,34 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (!mounted) return;
     final now = DateTime.now();
     final focus = getLocalizedFocus(
-        AppLocalizations.of(context), _progress.currentWeek, _progress.currentDay);
+      AppLocalizations.of(context),
+      _progress.currentWeek,
+      _progress.currentDay,
+    );
 
     final currentExercises = getTodayExercises(_progress.currentDay);
     final completedExercises = currentExercises
         .where((e) => _completedExerciseUuids.contains(e.uuid))
-        .map((e) {
-      final lvl = e.getLevel(e.recommendedLevel);
-      return CompletedExercise(
-        exerciseUuid: e.uuid,
-        exerciseName: e.name,
-        setsCompleted: lvl?.sets ?? 1,
-        repsCompleted: lvl?.reps,
-        durationSeconds: lvl?.durationSeconds,
-      );
-    }).toList();
+        .expand((e) {
+          // Never fabricate a set count: an exercise with no levels
+          // at all is skipped loudly instead of being logged as "1 set".
+          final lvl = e.resolveLevel(e.recommendedLevel);
+          if (lvl == null) {
+            debugPrint(
+                'Skipping workout log for ${e.uuid}: no levels defined');
+            return <CompletedExercise>[];
+          }
+          return [
+            CompletedExercise(
+              exerciseUuid: e.uuid,
+              exerciseName: e.name,
+              setsCompleted: lvl.sets ?? 1,
+              repsCompleted: lvl.reps,
+              durationSeconds: lvl.durationSeconds,
+            )
+          ];
+        })
+        .toList();
 
     final oldSessions = await _storageService.loadSessions();
     final oldProgress = _progress;
@@ -616,8 +639,12 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         _historyRefreshCounter++;
       });
       _rebuildScreens();
-      _showCelebration(focus, completedExercises.length,
-          durationSeconds, fresh);
+      _showCelebration(
+        focus,
+        completedExercises.length,
+        durationSeconds,
+        fresh,
+      );
     } catch (e) {
       debugPrint('Workout completion FAILED: $e');
       try {
@@ -634,93 +661,25 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     }
   }
 
-  void _showCelebration(String focus, int exerciseCount,
-      int durationSeconds, List<String> newAchievementIds) async {
+  void _showCelebration(
+    String focus,
+    int exerciseCount,
+    int durationSeconds,
+    List<String> newAchievementIds,
+  ) async {
     HapticFeedback.heavyImpact();
     final provider = context.read<AchievementProvider>();
     final newResults = provider.pendingAchievementDetails();
 
     if (newResults.isEmpty) {
-      // Workout-only celebration (no new achievements)
-      final l10n = AppLocalizations.of(context);
-      showModalBottomSheet(
-        context: context,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        builder: (ctx) => Padding(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppTheme.subtleFill(context, 0.30),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: AppTheme.achievementGreen.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.emoji_events,
-                  color: AppTheme.achievementGreen,
-                  size: 40,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                l10n.celebration_workoutComplete,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                focus,
-                style: TextStyle(
-                  color: AppTheme.textTertiary(context),
-                  fontSize: 15,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _celebStat(context, '$exerciseCount', l10n.home_exercises),
-                  _celebStat(context, '${durationSeconds ~/ 60}${l10n.home_min}',
-                      l10n.home_duration),
-                  _celebStat(context, 'W${_progress.currentWeek}',
-                      l10n.home_completed),
-                ],
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: Text(l10n.home_letsGo),
-                ),
-              ),
-            ],
-          ),
-        ),
+      WorkoutCompleteSheet.show(
+        context,
+        focus: focus,
+        exerciseCount: exerciseCount,
+        durationSeconds: durationSeconds,
+        currentWeek: _progress.currentWeek,
       );
     } else {
-      // Show elaborate celebration with confetti + achievement details
       provider.clearPendingUnlocks();
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -737,56 +696,42 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     }
   }
 
-  Widget _celebStat(BuildContext context, String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: AppTheme.textPrimary(context),
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: AppTheme.textTertiary(context),
-            fontSize: 13,
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     _rebuildScreens();
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: null,
-      body: AnimatedSwitcher(
-        duration: AppTheme.kAnimMedium,
-        switchInCurve: AppTheme.kEaseOut,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          final bool isForward = _selectedIndex > _previousIndex;
-          final Offset begin = isForward
-              ? const Offset(0.025, 0.0)
-              : const Offset(-0.025, 0.0);
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(begin: begin, end: Offset.zero)
-                  .animate(animation),
-              child: child,
+      body: Column(
+        children: [
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: AppTheme.kAnimMedium,
+              switchInCurve: AppTheme.kEaseOut,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                final bool isForward = _selectedIndex > _previousIndex;
+                final Offset begin = isForward
+                    ? const Offset(0.025, 0.0)
+                    : const Offset(-0.025, 0.0);
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: begin,
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  ),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey(_selectedIndex),
+                child: _screens[_selectedIndex],
+              ),
             ),
-          );
-        },
-        child: KeyedSubtree(
-          key: ValueKey(_selectedIndex),
-          child: _screens[_selectedIndex],
-        ),
+          ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
@@ -800,8 +745,9 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
           }
         },
         backgroundColor: Theme.of(context).colorScheme.surface,
-        indicatorColor:
-            Theme.of(context).colorScheme.primary.withValues(alpha: 0.18),
+        indicatorColor: Theme.of(
+          context,
+        ).colorScheme.primary.withValues(alpha: 0.18),
         destinations: [
           NavigationDestination(
             icon: const Icon(Icons.home_outlined),

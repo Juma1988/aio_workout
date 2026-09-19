@@ -626,6 +626,12 @@ abstract class AppLocalizations {
   /// **'Add week'**
   String get plan_addWeek;
 
+  /// No description provided for @plan_cloneWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Clone week'**
+  String get plan_cloneWeek;
+
   /// No description provided for @plan_removeWeek.
   ///
   /// In en, this message translates to:

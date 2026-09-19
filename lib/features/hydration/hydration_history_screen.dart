@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
+
 import '../../models/hydration_data.dart';
 import '../../services/hydration_storage.dart';
 import '../dialogs/hydration_goal_dialog.dart';
@@ -118,15 +119,18 @@ class _HydrationHistoryScreenState extends State<HydrationHistoryScreen>
           ],
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildWeekView(context),
-                _buildMonthView(context),
-              ],
-            ),
+      body: Column(
+        children: [
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [_buildWeekView(context), _buildMonthView(context)],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 

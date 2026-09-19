@@ -139,6 +139,7 @@
   "plan_saveError": "تعذر حفظ الخطة",
   "plan_weeksSection": "الأسابيع",
   "plan_addWeek": "إضافة أسبوع",
+  "plan_cloneWeek": "نسخ أسبوع",
   "plan_removeWeek": "حذف آخر أسبوع",
   "plan_exerciseCount": "{count} تمارين",
   "@plan_exerciseCount": {

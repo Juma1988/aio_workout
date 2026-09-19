@@ -1,5 +1,4 @@
 import 'exercise.dart';
-import 'workout_log.dart';
 
 Level _parseLevel(String? name) {
   if (name == null || name.isEmpty) return Level.beginner;
@@ -29,7 +28,7 @@ class PlanExerciseSlot {
   });
 
   factory PlanExerciseSlot.fromExercise(Exercise ex) {
-    final lvl = ex.getLevel(ex.recommendedLevel);
+    final lvl = ex.resolveLevel(ex.recommendedLevel);
     return PlanExerciseSlot(
       exerciseId: ex.uuid,
       exerciseName: ex.name,
@@ -62,6 +61,14 @@ class PlanExerciseSlot {
         if (durationSeconds != null) 'durationSeconds': durationSeconds,
         if (weightKg != null) 'weightKg': weightKg,
       };
+
+  /// Single-source view of this slot's dosage.
+  Prescription toPrescription() => Prescription(
+        sets: sets,
+        reps: reps,
+        durationSeconds: durationSeconds,
+        weightKg: weightKg,
+      );
 
   PlanExerciseSlot copyWith({
     String? exerciseId,
@@ -209,15 +216,33 @@ class WorkoutPlan {
   /// Virtual card stats for the built-in 12-week program (not stored in prefs).
   static const int defaultPlanWeeks = 12;
 
-  /// 5 workout days/week × 6 default exercises × 12 weeks (days 4 & 7 rest).
+  /// The built-in recomposition plan follows a Saturday/Monday/Wednesday
+  /// lifting schedule with cardio on the days between sessions.
+  static const String defaultPlanName = 'Full Body Plan — Recomp + Cardio';
+
+  /// Three lifting days/week × five exercises × 12 weeks.
   static int defaultPlanExerciseTotal() {
     var total = 0;
     for (var week = 1; week <= defaultPlanWeeks; week++) {
       for (var day = 1; day <= 7; day++) {
-        if (!isRestDay(day)) total += 6;
+        if (defaultPlanWorkoutForDay(day) != null) total += 5;
       }
     }
     return total;
+  }
+
+  /// Saturday = 6, Monday = 1, Wednesday = 3. Other days are cardio/rest.
+  static String? defaultPlanWorkoutForDay(int day) {
+    switch (day) {
+      case 6:
+        return 'Workout A';
+      case 1:
+        return 'Workout B';
+      case 3:
+        return 'Workout C';
+      default:
+        return null;
+    }
   }
 
   factory WorkoutPlan.fromJson(Map<String, dynamic> json) {

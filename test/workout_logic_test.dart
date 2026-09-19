@@ -30,12 +30,12 @@ void main() {
   // ─── isRestDay ────────────────────────────────────────────────────────────
 
   group('isRestDay()', () {
-    test('day 4 is a rest day', () {
-      expect(isRestDay(4), isTrue);
-    });
-
     test('day 7 is a rest day', () {
       expect(isRestDay(7), isTrue);
+    });
+
+    test('day 4 is not a rest day', () {
+      expect(isRestDay(4), isFalse);
     });
 
     test('day 1 is not a rest day', () {
@@ -55,20 +55,19 @@ void main() {
 
   group('getFocusForDay()', () {
     test('rest days return "Rest Day"', () {
-      expect(getFocusForDay(1, 4), 'Rest Day');
       expect(getFocusForDay(5, 7), 'Rest Day');
     });
 
-    test('week 1 day 1 returns Core Foundation', () {
-      expect(getFocusForDay(1, 1), 'Core Foundation');
+    test('Monday is Workout B', () {
+      expect(getFocusForDay(1, 1), 'Workout B');
     });
 
-    test('week 2 day 2 returns Upper Body Basics', () {
-      expect(getFocusForDay(2, 2), 'Upper Body Basics');
+    test('Tuesday is Cardio', () {
+      expect(getFocusForDay(2, 2), 'Cardio');
     });
 
-    test('week 3 day 3 returns Lower Body Foundation', () {
-      expect(getFocusForDay(3, 3), 'Lower Body Foundation');
+    test('Wednesday is Workout C', () {
+      expect(getFocusForDay(3, 3), 'Workout C');
     });
   });
 

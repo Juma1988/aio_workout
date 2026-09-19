@@ -2,11 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/hydration_data.dart';
-import '../services/workout_storage_service.dart' show dateKey;
-
-/// Whether [seedMockData] should generate fake records for development/testing.
-/// Always false in release builds — users never see fabricated data.
-bool _debugAllowMockData = false;
+import '../core/utils/date_utils.dart' show dateKey;
+import '../core/analytics/hydration_analytics.dart';
 
 class HydrationStorage {
   static const _hydrationHistoryKey = 'hydration_history';
@@ -143,72 +140,22 @@ class HydrationStorage {
   // ── Week / Month data ──
 
   Future<WeeklyHydrationData> loadWeekData({DateTime? referenceDate}) async {
-    final ref = referenceDate ?? DateTime.now();
-    final startOfWeek = ref.subtract(Duration(days: ref.weekday - 1));
     final goal = await loadDailyGoal();
     final entries = await loadAllEntries();
-    final days = <DailyHydrationSummary>[];
-
-    double totalLiters = 0;
-    double totalGoalLiters = 0;
-    int daysMetGoal = 0;
-
-    for (int i = 0; i < 7; i++) {
-      final day = startOfWeek.add(Duration(days: i));
-      final key = dateKey(day);
-      final dayEntries = entries.where((e) => e.date == key).toList();
-      final daySummary = DailyHydrationSummary.fromEntries(key, dayEntries, goal);
-      days.add(daySummary);
-      totalLiters += daySummary.totalLiters;
-      totalGoalLiters += goal;
-      if (daySummary.goalProgress >= 1.0) {
-        daysMetGoal++;
-      }
-    }
-
-    return WeeklyHydrationData(
-      days: days,
-      totalLiters: totalLiters,
-      totalGoalLiters: totalGoalLiters,
-      averageDailyLiters: totalLiters / 7.0,
-      daysMetGoal: daysMetGoal,
+    return HydrationAnalytics.computeWeekData(
+      entries: entries,
+      goal: goal,
+      referenceDate: referenceDate,
     );
   }
 
   Future<MonthlyHydrationData> loadMonthData({DateTime? referenceDate}) async {
-    final ref = referenceDate ?? DateTime.now();
-    final firstOfMonth = DateTime(ref.year, ref.month, 1);
-    final weeks = <WeeklyHydrationData>[];
-    double totalLiters = 0;
-    double totalGoalLiters = 0;
-    int activeDays = 0;
-    int daysMetGoal = 0;
-
-    DateTime weekStart = firstOfMonth;
-    while (weekStart.month == ref.month || weekStart.isBefore(firstOfMonth.add(const Duration(days: 7)))) {
-      final weekData = await loadWeekData(referenceDate: weekStart.add(const Duration(days: 3)));
-      if (weekData.days.any((d) => d.date.startsWith('${ref.year}-${ref.month.toString().padLeft(2, '0')}'))) {
-        weeks.add(weekData);
-        totalLiters += weekData.totalLiters;
-        totalGoalLiters += weekData.totalGoalLiters;
-        activeDays += weekData.days.where((d) => d.totalLiters > 0).length;
-        daysMetGoal += weekData.daysMetGoal;
-      }
-      weekStart = weekStart.add(const Duration(days: 7));
-      if (weeks.length >= 6) break;
-    }
-
-    final daysInMonth = ref.month == 12
-        ? DateTime(ref.year + 1, 1, 0).day
-        : DateTime(ref.year, ref.month + 1, 0).day;
-
-    return MonthlyHydrationData(
-      weeks: weeks,
-      totalLiters: totalLiters,
-      totalGoalLiters: totalGoalLiters,
-      averageDailyLiters: daysInMonth > 0 ? totalLiters / daysInMonth.toDouble() : 0.0,
-      activeDays: activeDays,
-      daysMetGoal: daysMetGoal,
+    final goal = await loadDailyGoal();
+    final entries = await loadAllEntries();
+    return HydrationAnalytics.computeMonthData(
+      entries: entries,
+      goal: goal,
+      referenceDate: referenceDate,
     );
   }
 
@@ -234,21 +181,10 @@ class HydrationStorage {
   Future<int> computeStreak() async {
     final entries = await loadAllEntries();
     final goal = await loadDailyGoal();
-    final now = DateTime.now();
-    int streak = 0;
-
-    for (int i = 0; i < 365; i++) {
-      final day = now.subtract(Duration(days: i));
-      final key = dateKey(day);
-      final dayEntries = entries.where((e) => e.date == key).toList();
-      final total = dayEntries.fold(0.0, (sum, e) => sum + e.liters);
-      if (total >= goal) {
-        streak++;
-      } else {
-        break;
-      }
-    }
-    return streak;
+    return HydrationAnalytics.computeStreak(
+      entries: entries,
+      goal: goal,
+    );
   }
 
   // ── Today's drinks breakdown by source ──
@@ -256,17 +192,13 @@ class HydrationStorage {
   Future<Map<HydrationSource, double>> loadTodayBreakdown() async {
     final today = dateKey(DateTime.now());
     final entries = await loadEntriesForDate(today);
-    final map = <HydrationSource, double>{};
-    for (final e in entries) {
-      map.update(e.source, (v) => v + e.liters, ifAbsent: () => e.liters);
-    }
-    return map;
+    return HydrationAnalytics.computeBreakdown(entries);
   }
 
   // ── Mock data ──
 
   Future<void> seedMockData() async {
-    if (kReleaseMode || !_debugAllowMockData) return;
+    if (kReleaseMode || !kDebugMode) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();

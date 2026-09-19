@@ -3,8 +3,12 @@ import 'package:flutter/services.dart';
 import 'step_history_storage.dart';
 
 class StepCounterService {
-  static const MethodChannel _channel = MethodChannel('com.aio_workout/step_counter');
-  static const EventChannel _stepEvents = EventChannel('com.aio_workout/step_events');
+  static const MethodChannel _channel = MethodChannel(
+    'com.aio_workout/step_counter',
+  );
+  static const EventChannel _stepEvents = EventChannel(
+    'com.aio_workout/step_events',
+  );
 
   static final StepCounterService _instance = StepCounterService._();
   factory StepCounterService() => _instance;
@@ -20,6 +24,8 @@ class StepCounterService {
 
   Stream<int> get stepStream {
     if (_stepController == null || _stepController!.isClosed) {
+      _stepSubscription?.cancel();
+      _stepSubscription = null;
       _stepController = StreamController<int>.broadcast();
     }
     return _stepController!.stream;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
+
 import '../../models/step_data.dart';
 import '../../services/step_history_storage.dart';
 import 'widgets/step_chart.dart';
@@ -116,15 +117,18 @@ class _StepHistoryScreenState extends State<StepHistoryScreen>
           ],
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildWeekView(context),
-                _buildMonthView(context),
-              ],
-            ),
+      body: Column(
+        children: [
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [_buildWeekView(context), _buildMonthView(context)],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 

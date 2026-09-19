@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = ""
 
     # ── CORS ──
-    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
     # ── Aggregation ──
     STEP_BUCKET_MINUTES: int = 15  # granularity of step sync

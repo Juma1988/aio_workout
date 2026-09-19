@@ -292,6 +292,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get plan_addWeek => 'Add week';
 
   @override
+  String get plan_cloneWeek => 'Clone week';
+
+  @override
   String get plan_removeWeek => 'Remove last week';
 
   @override

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import 'exercise_localizer.dart';
+import 'exercise.dart' show Exercise;
+
+export '../core/utils/date_utils.dart' show isRestDay;
 
 class CompletedExercise {
   final String exerciseUuid;
@@ -160,39 +163,16 @@ class ProgramProgress {
       );
 }
 
-bool isRestDay(int day) => day == 4 || day == 7;
-
 String getFocusForDay(int week, int day) {
-  if (isRestDay(day)) return 'Rest Day';
+  if (day == 2 || day == 5) return 'Cardio';
+  if (day == 7) return 'Rest Day';
 
-  if (week <= 4) {
-    const focuses = {
-      1: 'Core Foundation',
-      2: 'Upper Body Basics',
-      3: 'Lower Body Foundation',
-      5: 'Full Body Foundation',
-      6: 'Cardio & Conditioning',
-    };
-    return focuses[day] ?? 'Core Foundation';
-  }
-  if (week <= 8) {
-    const focuses = {
-      1: 'Dynamic Core',
-      2: 'Upper Body Power',
-      3: 'Lower Body Strength',
-      5: 'Full Body Conditioning',
-      6: 'Cardio Endurance',
-    };
-    return focuses[day] ?? 'Dynamic Core';
-  }
   const focuses = {
-    1: 'Advanced Core',
-    2: 'Upper Body Peak',
-    3: 'Lower Body Peak',
-    5: 'Full Body HIIT',
-    6: 'Peak Cardio',
+    1: 'Workout B',
+    3: 'Workout C',
+    6: 'Workout A',
   };
-  return focuses[day] ?? 'Advanced Core';
+  return focuses[day] ?? 'Rest Day';
 }
 
 /// Returns the localized focus name for the given [week] and [day].
@@ -406,6 +386,15 @@ List<AchievementResult> computeAllAchievements(List<WorkoutSession> sessions) {
       progress: p,
     );
   }).toList();
+}
+
+/// Returns the exercises for today based on the day of the week.
+/// Currently always empty: day-specific programs plug in here, and rest
+/// days stay empty by design — rest is the absence of training
+/// (see `PlanDay.isRest`), not a fake exercise row flowing through
+/// workout math, streaks, and session logs.
+List<Exercise> getTodayExercises(int day) {
+  return const [];
 }
 
 class AchievementData {

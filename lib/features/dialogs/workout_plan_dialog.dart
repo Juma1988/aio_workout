@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/exercise_localizer.dart';
 import '../../data/workout_log.dart';
 import '../../l10n/app_localizations.dart';
+
 import '../../services/workout_storage_service.dart';
 
 class WorkoutPlanDialog extends StatefulWidget {
@@ -48,9 +49,13 @@ class _WorkoutPlanDialogState extends State<WorkoutPlanDialog> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(context),
+      body: Column(
+        children: [
+          Expanded(child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _buildBody(context)),
+        ],
+      ),
     );
   }
 

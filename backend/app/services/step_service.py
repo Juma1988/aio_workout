@@ -168,6 +168,44 @@ async def get_step_stats(
     )
 
 
+async def get_step_history(
+    db: AsyncSession,
+    user_id: UUID,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[DailyStepSummaryResponse], bool]:
+    """Get paginated step history with cursor-based pagination."""
+    result = await db.execute(
+        text("""
+            SELECT date, total_steps, total_distance, total_calories,
+                   active_minutes, peak_step_hour, sources
+            FROM daily_step_summaries
+            WHERE user_id = :uid
+            ORDER BY date DESC
+            LIMIT :limit OFFSET :offset
+        """),
+        {"uid": str(user_id), "limit": limit + 1, "offset": offset},
+    )
+    rows = result.fetchall()
+    has_more = len(rows) > limit
+    items = rows[:limit]
+    
+    summaries = [
+        DailyStepSummaryResponse(
+            date=r.date,
+            total_steps=r.total_steps,
+            total_distance=float(r.total_distance),
+            total_calories=float(r.total_calories),
+            active_minutes=r.active_minutes,
+            peak_step_hour=r.peak_step_hour,
+            sources=r.sources or [],
+        )
+        for r in items
+    ]
+    
+    return summaries, has_more
+
+
 async def get_step_trend(
     db: AsyncSession,
     user_id: UUID,

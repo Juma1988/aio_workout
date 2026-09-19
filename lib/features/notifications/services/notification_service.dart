@@ -57,7 +57,7 @@ class NotificationService {
     );
 
     await _plugin.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
 
@@ -184,8 +184,6 @@ class NotificationService {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
@@ -220,8 +218,6 @@ class NotificationService {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
@@ -282,8 +278,6 @@ class NotificationService {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
@@ -323,8 +317,6 @@ class NotificationService {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
   }
@@ -365,8 +357,6 @@ class NotificationService {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
@@ -420,8 +410,6 @@ class NotificationService {
             ),
           ),
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
         );
         notifIndex++;
       }
@@ -454,8 +442,6 @@ class NotificationService {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
@@ -492,7 +478,7 @@ class NotificationService {
   }
 
   Future<void> _cancelNotificationById(int id) async {
-    await _plugin.cancel(id);
+    await _plugin.cancel(id: id);
   }
 
   // ── Safe wrappers ──
@@ -503,19 +489,18 @@ class NotificationService {
     tz.TZDateTime date,
     NotificationDetails details, {
     required AndroidScheduleMode androidScheduleMode,
-    required UILocalNotificationDateInterpretation uiLocalNotificationDateInterpretation,
     DateTimeComponents? matchDateTimeComponents,
   }) async {
     try {
+      // v22+: all-named parameters; the legacy iOS
+      // `uiLocalNotificationDateInterpretation` argument is gone.
       await _plugin.zonedSchedule(
-        id,
-        title,
-        body,
-        date,
-        details,
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: date,
+        notificationDetails: details,
         androidScheduleMode: androidScheduleMode,
-        uiLocalNotificationDateInterpretation:
-            uiLocalNotificationDateInterpretation,
         matchDateTimeComponents: matchDateTimeComponents,
       );
     } catch (e) {
@@ -531,7 +516,9 @@ class NotificationService {
     String? payload,
   }) async {
     try {
-      await _plugin.show(id, title, body, details, payload: payload);
+      // v22+: all-named parameters.
+      await _plugin.show(
+          id: id, title: title, body: body, notificationDetails: details, payload: payload);
     } catch (e) {
       print('[Notifications] Show failed for $id: $e');
     }
