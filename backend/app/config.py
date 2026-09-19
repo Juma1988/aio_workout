@@ -3,6 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,6 +46,19 @@ class Settings(BaseSettings):
 
     # ── CORS ──
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+
+    @model_validator(mode="after")
+    def _reject_wildcard_cors_in_production(self):
+        """Fail fast: a wildcard CORS origin in production reflects any
+        origin while allow_credentials=True — an authenticated-hole.
+        Set CORS_ORIGINS to the real frontend domain(s) instead."""
+        if self.ENVIRONMENT == "production" and "*" in self.CORS_ORIGINS:
+            raise ValueError(
+                'CORS_ORIGINS must not contain "*" in production. '
+                "Set it to your frontend domain(s), e.g. "
+                'CORS_ORIGINS=["https://app.example.com"].'
+            )
+        return self
 
     # ── Aggregation ──
     STEP_BUCKET_MINUTES: int = 15  # granularity of step sync
